@@ -33,7 +33,7 @@ USER app
 WORKDIR /data
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD curl -fsS http://localhost:8080/healthz || exit 1
 LABEL org.opencontainers.image.title="Pocket Mail" \
-      org.opencontainers.image.description="Breathe, sit, notice: guided breathing patterns, a meditation timer with bells and background sounds, the Path (seven stages from your first breath to sitting still), a practice journal, streaks, milestones and statistics." \
+      org.opencontainers.image.description="All your email in one calm inbox: Gmail, iCloud, Outlook and any IMAP account — conversations, search, snooze, send later, undo send, one-click unsubscribe, rules, and attachments saved to your Pocket apps." \
       org.opencontainers.image.source="https://github.com/abjelosevic88/pocket-homelab-email" \
       org.opencontainers.image.licenses="MIT"
 ENTRYPOINT ["pocket-mail"]

@@ -212,7 +212,11 @@ func (s *Server) fail(w http.ResponseWriter, err error, context string) {
 }
 
 func (s *Server) readBody(r *http.Request) ([]byte, error) {
-	return io.ReadAll(http.MaxBytesReader(nil, r.Body, s.cfg.MaxBodyBytes))
+	limit := s.cfg.MaxBodyBytes
+	if limit <= 0 {
+		limit = 32 << 20
+	}
+	return io.ReadAll(http.MaxBytesReader(nil, r.Body, limit))
 }
 
 func decode(r *http.Request, v any) error {

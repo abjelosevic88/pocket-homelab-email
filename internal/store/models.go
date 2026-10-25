@@ -135,10 +135,10 @@ type Message struct {
 	CreatedAt       string    `json:"created_at"`
 
 	// Filled in for lists and views, not stored.
-	FolderRole  string `json:"folder_role,omitempty"`
-	FolderName  string `json:"folder_name,omitempty"`
-	ThreadCount int    `json:"thread_count,omitempty"`
-	ThreadUnread int   `json:"thread_unread,omitempty"`
+	FolderRole   string   `json:"folder_role,omitempty"`
+	FolderName   string   `json:"folder_name,omitempty"`
+	ThreadCount  int      `json:"thread_count,omitempty"`
+	ThreadUnread int      `json:"thread_unread,omitempty"`
 	Participants []string `json:"participants,omitempty"`
 }
 

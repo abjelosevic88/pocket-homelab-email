@@ -155,7 +155,7 @@ func nonInline(atts []Attachment) []Attachment {
 
 // FolderUIDs maps every UID here in a folder to its message id and flags (engine).
 type UIDState struct {
-	ID                                     int64
+	ID                                        int64
 	Seen, Flagged, Answered, Forwarded, Draft bool
 }
 
@@ -431,7 +431,9 @@ func ParseSearch(q string) Search {
 		}
 		return " "
 	})
-	for _, w := range strings.FieldsFunc(rest, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '@' && r != '.' && r != '-' && r != '_' }) {
+	for _, w := range strings.FieldsFunc(rest, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '@' && r != '.' && r != '-' && r != '_'
+	}) {
 		w = strings.Trim(w, ".-_")
 		if w != "" {
 			s.Words = append(s.Words, w)
@@ -630,7 +632,44 @@ func (s *Store) ListMessages(ctx context.Context, uid int64, q Query) ([]Message
 	if more {
 		out = out[:limit]
 	}
+	if q.Conversations && len(out) > 0 {
+		s.threadTotals(ctx, uid, out)
+	}
 	return out, more, nil
+}
+
+// threadTotals sets each row's ThreadCount to the whole conversation (every
+// folder but trash and spam, one copy per Message-ID), so a thread with your
+// replies in Sent shows them in its number.
+func (s *Store) threadTotals(ctx context.Context, uid int64, rows []Message) {
+	keys := make([]any, 0, len(rows)+1)
+	keys = append(keys, uid)
+	for _, m := range rows {
+		keys = append(keys, m.ThreadKey)
+	}
+	q := `SELECT m.account_id, m.thread_key, COUNT(DISTINCT CASE WHEN m.message_id != '' THEN m.message_id ELSE 'id' || m.id END)
+		FROM messages m JOIN folders f ON f.id = m.folder_id
+		WHERE m.user_id = ? AND f.role NOT IN ('trash','junk') AND m.thread_key IN (` + strings.TrimSuffix(strings.Repeat("?,", len(rows)), ",") + `)
+		GROUP BY m.account_id, m.thread_key`
+	res, err := s.DB.QueryContext(ctx, q, keys...)
+	if err != nil {
+		return
+	}
+	total := map[string]int{}
+	for res.Next() {
+		var acct int64
+		var key string
+		var n int
+		if res.Scan(&acct, &key, &n) == nil {
+			total[fmt.Sprintf("%d\x00%s", acct, key)] = n
+		}
+	}
+	res.Close()
+	for i := range rows {
+		if n, ok := total[fmt.Sprintf("%d\x00%s", rows[i].AccountID, rows[i].ThreadKey)]; ok && n > rows[i].ThreadCount {
+			rows[i].ThreadCount = n
+		}
+	}
 }
 
 // BoxCounts are the numbers next to the views in the sidebar.
@@ -758,19 +797,19 @@ func sortCorrespondents(c []Correspondent) {
 
 // Subscription is a mailing list or newsletter you get.
 type Subscription struct {
-	Addr            string `json:"addr"`
-	Name            string `json:"name"`
-	ListID          string `json:"list_id"`
-	Count           int    `json:"count"`
-	Unread          int    `json:"unread"`
-	Last            string `json:"last"`
-	LastSubject     string `json:"last_subject"`
-	LastMessageID   int64  `json:"last_message_id"`
-	CanUnsubscribe  bool   `json:"can_unsubscribe"`
-	OneClick        bool   `json:"one_click"`
-	UnsubscribedAt  string `json:"unsubscribed_at"`
-	Muted           bool   `json:"muted"`
-	Category        string `json:"category"`
+	Addr           string `json:"addr"`
+	Name           string `json:"name"`
+	ListID         string `json:"list_id"`
+	Count          int    `json:"count"`
+	Unread         int    `json:"unread"`
+	Last           string `json:"last"`
+	LastSubject    string `json:"last_subject"`
+	LastMessageID  int64  `json:"last_message_id"`
+	CanUnsubscribe bool   `json:"can_unsubscribe"`
+	OneClick       bool   `json:"one_click"`
+	UnsubscribedAt string `json:"unsubscribed_at"`
+	Muted          bool   `json:"muted"`
+	Category       string `json:"category"`
 }
 
 // Subscriptions lists the senders of list mail (newsletters, updates) with how much they send.

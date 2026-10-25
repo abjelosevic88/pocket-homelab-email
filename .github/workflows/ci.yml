@@ -24,10 +24,13 @@ jobs:
       - name: Smoke test
         run: |
           DATA_DIR=/tmp/pml DEMO_DATA=true AUTH_MODE=none ./pocket-mail &
+          sleep 1
+          curl -fsS http://localhost:8080/api/v1/auth/status > /dev/null
           sleep 2
           curl -fsS http://localhost:8080/healthz
-          curl -fsS http://localhost:8080/api/v1/dashboard | grep -q lifetime_min
-          curl -fsS "http://localhost:8080/api/v1/programs/path" | grep -q '"arrive-1"'
+          curl -fsS http://localhost:8080/api/v1/sidebar | grep -q '"accounts"'
+          curl -fsS "http://localhost:8080/api/v1/messages?box=inbox" | grep -q '"thread_key"'
+          curl -fsS http://localhost:8080/api/v1/providers | grep -q '"gmail"'
           curl -fsS http://localhost:8080/ | grep -q '<div id="root">'
   docker:
     runs-on: ubuntu-latest
