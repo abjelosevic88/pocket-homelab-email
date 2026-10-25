@@ -239,7 +239,10 @@ kbd.kbd-on-primary { margin-left: auto; }
 .invite-date span { font-size: 10.5px; text-transform: uppercase; color: var(--danger); font-weight: 700; letter-spacing: .04em; }
 .invite-date b { font-size: 20px; line-height: 1; }
 .invite-title { font-weight: 650; font-size: 14px; margin-bottom: 2px; }
-@media (max-width: 767px) { .invite { margin-left: 14px; } }
+.invite > .grow { flex: 1 1 220px; min-width: 0; }
+.invite .row { align-items: flex-start; gap: 4px; }
+.invite .row svg { margin-top: 3px; flex-shrink: 0; }
+@media (max-width: 767px) { .invite { margin-left: 14px; } .invite > .btn { flex: 1 1 100%; justify-content: center; } }
 
 .atts { margin: 0 14px 14px 62px; border-top: 1px solid var(--hairline); padding-top: 10px; }
 @media (max-width: 767px) { .atts { margin-left: 14px; } }
