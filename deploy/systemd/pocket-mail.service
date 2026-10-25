@@ -1,0 +1,23 @@
+[Unit]
+Description=Pocket Mail — breathe, sit, notice
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pocket-mail
+Group=pocket-mail
+ExecStart=/usr/local/bin/pocket-mail
+Environment=DATA_DIR=/var/lib/pocket-mail
+Environment=PORT=8080
+Environment=BASE_URL=https://mail.example.com
+Environment=SECURE_COOKIES=true
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/pocket-mail
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

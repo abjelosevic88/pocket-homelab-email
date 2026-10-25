@@ -1,0 +1,5 @@
+# Pocket Mail behind Caddy. Homepage widgets and linked apps send their own
+# bearer token to /api/*.
+mail.example.com {
+	reverse_proxy pocket-mail:8080
+}
