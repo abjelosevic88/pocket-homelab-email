@@ -1,68 +1,68 @@
-// Left column: start button, sections with today's numbers — the Pocket Calendar sidebar.
+// Left column: Compose, the unified views with their numbers, smart views, every account with its folders.
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useApp } from '../lib/app-context'
-import { sessionURL } from '../lib/session'
-import type { Dashboard } from '../lib/types'
+import { useMail } from '../lib/mail-context'
+import { BOXES, ROLE_ICON, ROLE_LABEL, accountColor, openCompose } from '../lib/mail'
+import type { AccountView, Folder } from '../lib/types'
 import { Icon } from './icons'
-import { createItems, type CreateKind } from './Layout'
-import { type Anchor, Menu, rectOf } from './ui'
+import { Spinner } from './ui'
 
-export function Sidebar({ onCreate, onNavigate, counts }: { onCreate: (k: CreateKind) => void; onNavigate: () => void; counts: Dashboard | null }) {
+const OPEN_KEY = 'pml-sb-open'
+
+export function Sidebar({ onNavigate }: { onNavigate: () => void }) {
   const { status, settings } = useApp()
+  const { accounts, counts, loaded } = useMail()
   const navigate = useNavigate()
-  const [menu, setMenu] = useState<Anchor | null>(null)
+  const [open, setOpen] = useState<Record<number, boolean>>(() => { try { return JSON.parse(localStorage.getItem(OPEN_KEY) || '{}') } catch { return {} } })
+  const toggle = (id: number) => setOpen(o => { const n = { ...o, [id]: !o[id] }; localStorage.setItem(OPEN_KEY, JSON.stringify(n)); return n })
   const title = settings?.title || status?.title || 'Pocket Mail'
-  const goal = counts && counts.goal_min > 0 ? `${Math.round(counts.today_min)}/${counts.goal_min} min` : counts && counts.today_min ? `${Math.round(counts.today_min)} min` : undefined
-  const nav: { to: string; label: string; icon: string; end?: boolean; count?: string; badge?: string }[] = [
-    { to: '/', label: 'Today', icon: 'home', end: true, count: goal },
-    { to: '/breathe', label: 'Breathe', icon: 'wind' },
-    { to: '/meditate', label: 'Meditate', icon: 'lotus' },
-    { to: '/path', label: 'The Path', icon: 'mountain', count: counts?.path_total ? `${counts.path_done}/${counts.path_total}` : undefined },
-    { to: '/journal', label: 'Journal', icon: 'journal' },
-    { to: '/stats', label: 'Statistics', icon: 'chart' },
-    { to: '/milestones', label: 'Milestones', icon: 'trophy', count: counts?.level },
-  ]
-  const go = (url: string) => { onNavigate(); navigate(url) }
+  const n = (k?: string) => (k && counts[k] ? counts[k] : 0)
+  const nav = (to: string, label: string, icon: string, count?: number) => (
+    <NavLink key={to} to={to} onClick={onNavigate} className={({ isActive }) => `sb-nav-item ${isActive ? 'active' : ''}`}>
+      <Icon name={icon} size={16} />{label}
+      {!!count && <span className="sb-count">{count.toLocaleString()}</span>}
+    </NavLink>
+  )
   return (
-    <aside className="sidebar" aria-label="Still">
+    <aside className="sidebar" aria-label="Mail">
       <div className="sb-brand">
         <img src="/favicon.svg" alt="" className="sb-logo" />
-        <span className="sb-title">{title !== 'Pocket Mail' ? title : <>Pocket <b>Still</b></>}</span>
+        <span className="sb-title">{title !== 'Pocket Mail' ? title : <>Pocket <b>Mail</b></>}</span>
         {status?.version && <span className="sb-version" title={`Version ${status.version}`}>{/^\d/.test(status.version) ? 'v' + status.version : status.version}</span>}
       </div>
-      <button type="button" className="btn primary create-btn" aria-haspopup="menu" aria-expanded={!!menu} onClick={e => setMenu(menu ? null : rectOf(e.currentTarget))}>
-        <Icon name="play" size={15} strokeWidth={2.2} />Start<Icon name="chevron-down" size={15} className="create-caret" />
+      <button type="button" className="btn primary create-btn" onClick={() => { onNavigate(); openCompose({ kind: 'new' }) }} title="Compose (c)">
+        <Icon name="edit" size={15} strokeWidth={2.1} />Compose<kbd className="kbd-on-primary">C</kbd>
       </button>
-      {menu && <Menu anchor={menu} items={createItems(onCreate)} onClose={() => setMenu(null)} width={248} />}
 
-      <nav className="sb-nav" aria-label="Sections">
-        {nav.map(n => (
-          <NavLink key={n.to} to={n.to} end={n.end} onClick={onNavigate} className={({ isActive }) => `sb-nav-item ${isActive ? 'active' : ''}`}>
-            <Icon name={n.icon} size={16} />{n.label}
-            {!!n.count && <span className="sb-count">{n.count}</span>}
-          </NavLink>
-        ))}
+      <nav className="sb-nav" aria-label="Views">
+        {BOXES.map(b => b.id === 'drafts' ? nav('/drafts', b.label, b.icon, n('drafts'))
+          : nav(`/m/${b.id}`, b.label, b.icon, b.id === 'starred' ? undefined : n(b.count)))}
+        {(n('scheduled') > 0 || n('failed') > 0) && nav('/scheduled', n('failed') ? 'Not sent' : 'Scheduled', n('failed') ? 'alert' : 'clock', n('scheduled') + n('failed'))}
       </nav>
 
-      {counts && (
-        <section className="sb-sec sb-streak" aria-label="Streak">
-          <div className="sb-streak-row">
-            <Icon name="flame" size={16} className={counts.streak > 0 ? 'flame-on' : 'muted'} />
-            <span><b>{counts.streak}</b> {counts.streak === 1 ? 'day' : 'days'} in a row</span>
-          </div>
-          <div className="sb-streak-sub muted small">{Math.round(counts.week_min)} min this week · best streak {counts.longest_streak}</div>
-        </section>
-      )}
+      <section className="sb-sec" aria-label="Smart views">
+        <h4 className="sb-h"><span className="sb-h-btn">Smart views</span></h4>
+        <nav className="sb-nav tight">
+          {nav('/attachments', 'Attachments', 'paperclip')}
+          {nav('/subscriptions', 'Subscriptions', 'rss')}
+          {nav('/m/receipts', 'Receipts', 'receipt', n('receipts'))}
+          {nav('/m/vip', 'VIP', 'vip')}
+        </nav>
+      </section>
 
-      <section className="sb-sec">
-        <h4 className="sb-h"><span className="sb-h-btn">Quick start</span></h4>
-        <div className="sb-quick">
-          <button type="button" className="sb-quick-btn" onClick={() => go(sessionURL({ mode: 'breath', technique: 'sigh', minutes: 1 }))}><Icon name="wind" size={14} />1-minute reset</button>
-          <button type="button" className="sb-quick-btn" onClick={() => go(sessionURL({ mode: 'breath', technique: 'box' }))}><Icon name="target" size={14} />Box breathing</button>
-          <button type="button" className="sb-quick-btn" onClick={() => go(sessionURL({ mode: 'timer', technique: 'silent', minutes: settings?.default_sit_min || 10 }))}><Icon name="timer" size={14} />Silent sit</button>
-          <button type="button" className="sb-quick-btn" onClick={() => go(sessionURL({ mode: 'breath', technique: 'relax478' }))}><Icon name="moon" size={14} />For sleep</button>
-        </div>
+      <section className="sb-sec" aria-label="Accounts">
+        <h4 className="sb-h"><span className="sb-h-btn">Accounts</span>
+          <Link to="/settings/accounts?add=1" className="btn ghost icon-only sm" aria-label="Add an account" title="Add an account" onClick={onNavigate}><Icon name="plus" size={14} /></Link>
+        </h4>
+        {loaded && accounts.length === 0 && (
+          <button type="button" className="sb-src-note" onClick={() => { onNavigate(); navigate('/settings/accounts?add=1') }}>
+            <Icon name="mail" size={14} /><span>Add your first account: Gmail, iCloud, Outlook or any other.</span>
+          </button>
+        )}
+        <ul className="cal-list">
+          {accounts.map(a => <AccountRow key={a.id} a={a} open={!!open[a.id]} onToggle={() => toggle(a.id)} onNavigate={onNavigate} />)}
+        </ul>
       </section>
 
       <div className="sb-foot">
@@ -70,5 +70,49 @@ export function Sidebar({ onCreate, onNavigate, counts }: { onCreate: (k: Create
         <button type="button" className="sb-foot-link" onClick={() => { onNavigate(); window.dispatchEvent(new CustomEvent('pml:shortcuts')) }}><Icon name="keyboard" size={15} />Shortcuts</button>
       </div>
     </aside>
+  )
+}
+
+const ROLE_ORDER = ['inbox', 'flagged', 'drafts', 'sent', 'archive', 'all', 'junk', 'trash', 'important', '']
+
+function AccountRow({ a, open, onToggle, onNavigate }: { a: AccountView; open: boolean; onToggle: () => void; onNavigate: () => void }) {
+  const navigate = useNavigate()
+  const inbox = a.folders.find(f => f.role === 'inbox')
+  const bad = a.sync_state === 'error' || a.sync_state === 'auth'
+  const syncing = !!a.status?.syncing || a.sync_state === 'syncing' || a.sync_state === 'new'
+  const folders = a.folders.filter(f => f.selectable)
+  const top = folders.filter(f => f.role !== '').sort((x, y) => ROLE_ORDER.indexOf(x.role) - ROLE_ORDER.indexOf(y.role))
+  const own = folders.filter(f => f.role === '')
+  return (
+    <li>
+      <div className="cal-row sb-row sb-acct">
+        <button type="button" className="sb-twisty" aria-label={open ? 'Hide folders' : 'Show folders'} aria-expanded={open} onClick={onToggle}><Icon name={open ? 'chevron-down' : 'chevron-right'} size={13} /></button>
+        <NavLink to={inbox ? `/f/${inbox.id}` : '/settings/accounts'} onClick={onNavigate} className={({ isActive }) => `cal-check ${isActive ? 'is-active' : ''}`} title={a.email}>
+          <span className="acct-dot" style={{ background: accountColor(a) }} />
+          <span className="cal-name ellipsis">{a.label || a.email}</span>
+        </NavLink>
+        {bad ? <button type="button" className="src-warn btn-plain" title={a.sync_error || 'Sign in again'} aria-label="Account needs attention" onClick={() => { onNavigate(); navigate('/settings/accounts') }}><Icon name="alert" size={14} /></button>
+          : syncing ? <span className="sb-sync" title={a.status?.progress || 'Syncing…'}><Spinner size={11} /></span>
+          : !!inbox?.unread && <span className="sb-count">{inbox.unread.toLocaleString()}</span>}
+      </div>
+      {open && <ul className="cal-list sb-folders">
+        {[...top, ...own].map(f => <FolderRow key={f.id} f={f} onNavigate={onNavigate} />)}
+        {folders.length === 0 && <li className="sb-empty">{syncing ? 'Finding folders…' : 'No folders yet.'}</li>}
+      </ul>}
+    </li>
+  )
+}
+
+function FolderRow({ f, onNavigate }: { f: Folder; onNavigate: () => void }) {
+  const depth = f.delimiter ? Math.max(0, f.name.split(f.delimiter).length - 1) : 0
+  const label = (f.role && ROLE_LABEL[f.role]) || f.display || f.name
+  return (
+    <li className="cal-row sb-row" style={{ paddingLeft: f.role ? 0 : Math.min(depth, 4) * 10 }}>
+      <NavLink to={`/f/${f.id}`} onClick={onNavigate} className={({ isActive }) => `cal-check ${isActive ? 'is-active' : ''}`}>
+        <Icon name={ROLE_ICON[f.role] || 'folder'} size={14} className="muted" />
+        <span className="cal-name ellipsis">{label}</span>
+        {!!f.unread && f.role !== 'sent' && f.role !== 'trash' && <span className="sb-count">{f.unread.toLocaleString()}</span>}
+      </NavLink>
+    </li>
   )
 }

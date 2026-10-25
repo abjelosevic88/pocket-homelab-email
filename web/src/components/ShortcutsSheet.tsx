@@ -1,11 +1,10 @@
 import { Modal } from './ui'
 
 const GROUPS: { title: string; keys: [string[], string][] }[] = [
-  { title: 'Go to', keys: [[['h'], 'Today'], [['b'], 'Breathe'], [['m'], 'Meditate'], [['p'], 'The Path'], [['j'], 'Journal'], [['s'], 'Statistics'], [['g'], 'Milestones'], [[','], 'Settings'], [['/'], 'Search & commands'], [['⌘', 'K'], 'Search & commands']] },
-  { title: 'Start', keys: [[['1'], 'A one-minute reset'], [['t'], 'A silent sit'], [['n'], 'Add a practice by hand']] },
-  { title: 'During a practice', keys: [[['space'], 'Pause or go on'], [['esc'], 'End'], [['f'], 'Full screen']] },
-  { title: 'Window', keys: [[['['], 'Show or hide the sidebar'], [['esc'], 'Close a dialog or menu']] },
-  { title: 'Help', keys: [[['?'], 'This sheet']] },
+  { title: 'Go to', keys: [[['g', 'i'], 'Inbox'], [['g', 's'], 'Starred'], [['g', 'd'], 'Drafts'], [['g', 't'], 'Sent'], [['g', 'a'], 'Archive'], [['/'], 'Search'], [['⌘', 'K'], 'Commands'], [[','], 'Settings']] },
+  { title: 'Messages', keys: [[['j'], 'Next'], [['k'], 'Previous'], [['o'], 'Open'], [['u'], 'Back to the list'], [['x'], 'Select'], [['e'], 'Archive'], [['#'], 'Delete'], [['s'], 'Star'], [['⇧', 'I'], 'Mark as read'], [['⇧', 'U'], 'Mark as unread'], [['b'], 'Snooze'], [['v'], 'Move to a folder'], [['!'], 'Spam'], [['z'], 'Undo']] },
+  { title: 'Writing', keys: [[['c'], 'New message'], [['r'], 'Reply'], [['a'], 'Reply all'], [['f'], 'Forward'], [['⌘', '↵'], 'Send'], [['esc'], 'Minimise the message']] },
+  { title: 'Window', keys: [[['['], 'Show or hide the sidebar'], [['?'], 'This sheet'], [['esc'], 'Close a dialog or menu']] },
 ]
 
 export function ShortcutsSheet({ onClose }: { onClose: () => void }) {

@@ -1,29 +1,33 @@
 import { AskButton } from '../components/AskButton'
 import React, { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { api, V1 } from '../lib/api'
 import { useApp } from '../lib/app-context'
-import type { APIToken, ConnMode, Habit, HabitRule, Settings as SettingsT, User } from '../lib/types'
+import type { APIToken, ConnMode, Settings as SettingsT, Sidebar, User } from '../lib/types'
 import { DATE_FORMATS, TIME_FORMATS, fmtBytes, fmtDateTime, type DateFormat, type TimeFormat } from '../lib/format'
-import { KIND_NAME } from '../lib/still'
-import { AMBIENT_NAMES, BELL_NAMES, bell, setVolume, speak, unlock } from '../lib/audio'
 import { Avatar, Confirm, CoreHint, Field, Loading, Modal, Segmented, SettingRow, Switch, Tabs, useAsync, useIsMobile, useToast } from '../components/ui'
 import { Icon } from '../components/icons'
 import { Select } from '../components/Select'
 import { ShortcutsSheet } from '../components/ShortcutsSheet'
 import { PocketModelSelect } from '../components/PocketModelSelect'
+import { Connection, HOURS, Section, connBadge, useSettingsForm, useTester } from './settings-kit'
+import { AccountsTab } from './SettingsAccounts'
+import { RulesTab, TemplatesManager } from './SettingsRules'
 
-type TabId = 'practice' | 'reminders' | 'apps' | 'ai' | 'profile' | 'people' | 'tokens' | 'data' | 'about'
+type TabId = 'accounts' | 'reading' | 'writing' | 'notifications' | 'rules' | 'apps' | 'ai' | 'profile' | 'people' | 'tokens' | 'data' | 'about'
 
 const TABS: { id: TabId; label: string; icon: string; sub: string }[] = [
-  { id: 'practice', label: 'Practice & sounds', icon: 'lotus', sub: 'Your daily goal, the bells and background sounds, the voice, and how the player looks.' },
-  { id: 'reminders', label: 'Reminders', icon: 'bell', sub: 'A nudge at the times you choose, your streak in the evening, milestones and the weekly report.' },
-  { id: 'apps', label: 'Connected apps', icon: 'layers', sub: 'Pocket Habits (a day’s practice ticks a habit), Pocket Health (mindful minutes, your body on practice days) and music from Navidrome.' },
-  { id: 'ai', label: 'AI', icon: 'sparkles', sub: 'Who writes the reflection and answers questions: Pocket AI through Core, or your own OpenAI key.' },
+  { id: 'accounts', label: 'Accounts', icon: 'mail', sub: 'Your mail accounts: Gmail, iCloud, Outlook and any other. Add, sign in again, signatures and colours.' },
+  { id: 'reading', label: 'Reading', icon: 'eye', sub: 'How the inbox and messages look, images from senders, and what happens after you archive.' },
+  { id: 'writing', label: 'Writing', icon: 'edit', sub: 'Undo send, the account you write from, replies and templates.' },
+  { id: 'notifications', label: 'Notifications', icon: 'bell', sub: 'A push when mail from people arrives, quiet at night.' },
+  { id: 'rules', label: 'Rules', icon: 'sliders', sub: 'What happens to new mail by itself: skip the inbox, star, save attachments to your Pocket apps.' },
+  { id: 'apps', label: 'Connected apps', icon: 'layers', sub: 'Pocket Documents, Files, Tasks, Calendar, Contacts, Notes, Money and your photo library: where your mail can go.' },
+  { id: 'ai', label: 'AI', icon: 'sparkles', sub: 'Summaries, quick replies, “catch me up” and help with writing: Pocket AI through Core, or your own OpenAI key.' },
   { id: 'profile', label: 'Profile', icon: 'user', sub: 'Your name, email and password.' },
   { id: 'people', label: 'People', icon: 'users', sub: 'Everyone who has an account on this box.' },
   { id: 'tokens', label: 'API & shortcuts', icon: 'key', sub: 'Personal tokens for Homepage widgets, Siri Shortcuts and scripts.' },
-  { id: 'data', label: 'Backup & data', icon: 'database', sub: 'Download the database, export or import your practice.' },
+  { id: 'data', label: 'Backup & data', icon: 'database', sub: 'Download the database, export or import your setup.' },
   { id: 'about', label: 'About', icon: 'info', sub: 'Version, numbers and the server.' },
 ]
 
@@ -31,12 +35,12 @@ export default function Settings() {
   const { tab: raw } = useParams()
   const navigate = useNavigate()
   const mobile = useIsMobile()
-  const tab: TabId = TABS.find(t => t.id === raw)?.id || 'practice'
+  const tab: TabId = TABS.find(t => t.id === raw)?.id || 'accounts'
   const current = TABS.find(t => t.id === tab)!
   const go = (id: TabId) => navigate(`/settings/${id}`, { replace: true })
   useEffect(() => { document.querySelector('.set-content')?.scrollTo({ top: 0 }) }, [tab])
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.modal-backdrop, .menu, .sel-pop')) navigate('/') }
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.modal-backdrop, .menu, .select-pop')) navigate('/') }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
   }, [navigate])
@@ -63,8 +67,11 @@ export default function Settings() {
         <main className="set-content">
           <div className="set-inner" key={tab}>
             <div className="set-title"><h2>{current.label}</h2><p>{current.sub}</p></div>
-            {tab === 'practice' && <Practice />}
-            {tab === 'reminders' && <Reminders />}
+            {tab === 'accounts' && <AccountsTab />}
+            {tab === 'reading' && <Reading />}
+            {tab === 'writing' && <Writing />}
+            {tab === 'notifications' && <Notifications />}
+            {tab === 'rules' && <RulesTab />}
             {tab === 'apps' && <Integrations />}
             {tab === 'ai' && <AITab />}
             {tab === 'profile' && <Profile />}
@@ -79,242 +86,148 @@ export default function Settings() {
   )
 }
 
-function Section({ title, sub, icon, actions, children }: { title: React.ReactNode; sub?: React.ReactNode; icon?: string; actions?: React.ReactNode; children?: React.ReactNode }) {
-  return (
-    <section className="set-section">
-      <div className="set-section-head">
-        {icon && <span className="set-app-ico"><Icon name={icon} size={17} /></span>}
-        <div className="grow"><h3>{title}</h3>{sub && <p>{sub}</p>}</div>
-        {actions && <div className="row">{actions}</div>}
-      </div>
-      {children && <div className="set-section-body">{children}</div>}
-    </section>
-  )
-}
-
-function useSettingsForm() {
-  const { settings, setSettings, user } = useApp()
-  const { toast } = useToast()
-  const [f, setF] = useState<SettingsT | null>(settings)
-  const [busy, setBusy] = useState(false)
-  useEffect(() => { if (!f && settings) setF(settings) }, [settings]) // eslint-disable-line react-hooks/exhaustive-deps
-  const save = async (patch?: Partial<SettingsT>) => {
-    if (!f) return
-    setBusy(true)
-    try { const s = await api.put<SettingsT>(`${V1}/settings`, { ...f, ...patch }); setSettings(s); setF(s); toast('Saved') } catch (e) { toast((e as Error).message, 'err') } finally { setBusy(false) }
-  }
-  return { f, setF, save, busy, isAdmin: user?.role === 'admin' }
-}
-
-function useTester() {
-  const [test, setTest] = useState<Record<string, string>>({})
-  const run = async (which: string, url: string, key: string, extra: Record<string, string> = {}) => {
-    setTest(t => ({ ...t, [which]: 'testing…' }))
-    try { const r = await api.post<{ ok: boolean; message?: string; error?: string }>(`${V1}/integrations/test`, { which, url, key, ...extra }); setTest(t => ({ ...t, [which]: r.ok ? `✓ ${r.message}` : `✕ ${r.error}` })) } catch (e) { setTest(t => ({ ...t, [which]: `✕ ${(e as Error).message}` })) }
-  }
-  const status = (which: string) => <span className={`small ${test[which]?.startsWith('✓') ? 'ok' : test[which]?.startsWith('✕') ? 'bad' : 'muted'}`}>{test[which]}</span>
-  return { run, status }
-}
-
-const DAYS: [number, string][] = [[1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday'], [6, 'Saturday'], [7, 'Sunday']]
-const HOURS = Array.from({ length: 24 }, (_, h) => ({ value: String(h), label: `${String(h).padStart(2, '0')}:00` }))
-
-function Practice() {
-  const { f, setF, save, busy, isAdmin } = useSettingsForm()
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
-  useEffect(() => {
-    if (!('speechSynthesis' in window)) return
-    const load = () => setVoices(speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)))
-    load()
-    speechSynthesis.addEventListener('voiceschanged', load)
-    return () => speechSynthesis.removeEventListener('voiceschanged', load)
-  }, [])
+function Reading() {
+  const { f, setF, save, busy } = useSettingsForm()
   if (!f) return <Loading />
-  const preview = async (b: string) => { await unlock(); setVolume(f.volume); bell(b) }
-  const ambientOptions = Object.entries(AMBIENT_NAMES).map(([value, label]) => ({ value, label }))
-  if (f.ambient.startsWith('music:')) ambientOptions.push({ value: f.ambient, label: 'A Navidrome playlist' })
   return (
     <div className="stack loose">
-      <Section title="Goal" icon="target">
-        <SettingRow title="Minutes a day" help="Your daily goal: the ring on Today, goal days in the statistics. 0 = any practice counts."><input type="number" min={0} max={600} value={f.daily_goal_min} onChange={e => setF({ ...f, daily_goal_min: Number(e.target.value) })} className="set-time" /></SettingRow>
-        <SettingRow title="Days a week" help="How many goal days a week you aim for."><input type="number" min={0} max={7} value={f.weekly_goal_days} onChange={e => setF({ ...f, weekly_goal_days: Number(e.target.value) })} className="set-time" /></SettingRow>
-        <SettingRow title="A sit lasts" help="The default length of a meditation timer, in minutes."><input type="number" min={1} max={240} value={f.default_sit_min} onChange={e => setF({ ...f, default_sit_min: Number(e.target.value) })} className="set-time" /></SettingRow>
+      <Section title="The inbox" icon="inbox">
+        <SettingRow title="Conversations" help="Replies stay together in one row, like a chat."><Switch checked={f.conversations} onChange={v => setF({ ...f, conversations: v })} label="Conversations" /></SettingRow>
+        <SettingRow title="Inbox tabs" help="People · Updates · Newsletters · Receipts above the inbox, so mail from people is never buried."><Switch checked={f.inbox_categories} onChange={v => setF({ ...f, inbox_categories: v })} label="Inbox tabs" /></SettingRow>
+        <SettingRow title="Previews" help="A line of each message under the subject."><Switch checked={f.show_preview} onChange={v => setF({ ...f, show_preview: v })} label="Previews" /></SettingRow>
+        <SettingRow title="Density"><Segmented size="sm" value={f.density} onChange={v => setF({ ...f, density: v })} options={[{ value: 'comfortable', label: 'Comfortable' }, { value: 'compact', label: 'Compact' }]} /></SettingRow>
+        <SettingRow title="Reading pane" help="On a computer: the message next to the list, or the message instead of the list."><Segmented size="sm" value={f.reading_pane} onChange={v => setF({ ...f, reading_pane: v })} options={[{ value: 'right', label: 'Next to the list' }, { value: 'off', label: 'Full width' }]} /></SettingRow>
       </Section>
-      <Section title="Sound" icon="volume">
-        <SettingRow title="Bell" help="Starts and ends a sit (each timer can choose its own).">
-          <div className="row"><Select ariaLabel="Bell" value={f.bell} onChange={v => setF({ ...f, bell: v as SettingsT['bell'] })} options={Object.entries(BELL_NAMES).map(([value, label]) => ({ value, label }))} /><button type="button" className="btn ghost icon-only" title="Listen" aria-label="Listen" onClick={() => preview(f.bell)}><Icon name="play" size={14} /></button></div>
+      <Section title="Reading" icon="eye">
+        <SettingRow title="Mark as read" help="When you open a message.">
+          <Select ariaLabel="Mark as read" value={String(f.mark_read_after)} onChange={v => setF({ ...f, mark_read_after: Number(v) })} options={[{ value: '0', label: 'Right away' }, { value: '1', label: 'After 1 second' }, { value: '3', label: 'After 3 seconds' }, { value: '-1', label: 'Never — I mark it myself' }]} />
         </SettingRow>
-        <SettingRow title="Background sound" help="Synthesised in your browser; nothing to download."><Select ariaLabel="Background" value={f.ambient} onChange={v => setF({ ...f, ambient: v })} options={ambientOptions} /></SettingRow>
-        <SettingRow title="Breathing cues" help="A soft tone or a bell at each change between in, hold and out."><Segmented size="sm" value={f.breath_sound} onChange={v => setF({ ...f, breath_sound: v })} options={[{ value: 'soft', label: 'Soft tone' }, { value: 'bell', label: 'Bell' }, { value: 'none', label: 'Silent' }]} /></SettingRow>
-        <SettingRow title="Volume"><div className="row"><input type="range" min={0} max={1} step={0.05} value={f.volume} onChange={e => setF({ ...f, volume: Number(e.target.value) })} aria-label="Volume" /><span className="tnum small">{Math.round(f.volume * 100)}%</span></div></SettingRow>
-        <SettingRow title="Spoken guidance" help="“Breathe in”, “hold”, and the cues of guided sits, read aloud by your device’s voice."><Switch checked={f.voice} onChange={v => setF({ ...f, voice: v })} label="Voice" /></SettingRow>
-        {f.voice && voices.length > 0 && <SettingRow title="Voice">
-          <div className="row"><Select ariaLabel="Voice" value={f.voice_name} onChange={v => setF({ ...f, voice_name: v })} options={[{ value: '', label: 'Default' }, ...voices.map(v => ({ value: v.name, label: v.name, hint: v.lang }))]} /><button type="button" className="btn ghost icon-only" title="Listen" aria-label="Listen" onClick={async () => { await unlock(); speak('Breathe in. And slowly, breathe out.', f.voice_name) }}><Icon name="play" size={14} /></button></div>
-        </SettingRow>}
-      </Section>
-      <Section title="Player" icon="sliders">
-        <SettingRow title="Ask how you feel" help="A quick 1–5 before and after each practice; it powers “what helps” in the statistics."><Switch checked={f.ask_calm} onChange={v => setF({ ...f, ask_calm: v })} label="Ask how you feel" /></SettingRow>
-        <SettingRow title="Vibrate" help="On phones that can, at each breathing change."><Switch checked={f.haptics} onChange={v => setF({ ...f, haptics: v })} label="Haptics" /></SettingRow>
-        <SettingRow title="Keep the screen on" help="While a practice runs."><Switch checked={f.keep_awake} onChange={v => setF({ ...f, keep_awake: v })} label="Keep awake" /></SettingRow>
-        <SettingRow title="Theme"><Segmented size="sm" value={f.player_theme} onChange={v => setF({ ...f, player_theme: v })} options={[{ value: 'dusk', label: 'Dusk' }, { value: 'ocean', label: 'Ocean' }, { value: 'forest', label: 'Forest' }, { value: 'night', label: 'Night' }, { value: 'minimal', label: 'Minimal' }]} /></SettingRow>
-        <SettingRow title="Breathing shape"><Segmented size="sm" value={f.breath_visual} onChange={v => setF({ ...f, breath_visual: v })} options={[{ value: 'orb', label: 'Orb' }, { value: 'box', label: 'Box' }, { value: 'wave', label: 'Wave' }]} /></SettingRow>
+        <SettingRow title="Images from senders" help="Images loaded from the internet tell the sender that, when and where you read the mail. Asking first keeps that private.">
+          <Segmented size="sm" value={f.remote_images} onChange={v => setF({ ...f, remote_images: v })} options={[{ value: 'ask', label: 'Ask first' }, { value: 'always', label: 'Always show' }, { value: 'never', label: 'Never' }]} />
+        </SettingRow>
+        <SettingRow title="After archive or delete">
+          <Segmented size="sm" value={f.after_archive} onChange={v => setF({ ...f, after_archive: v })} options={[{ value: 'next', label: 'Next message' }, { value: 'previous', label: 'Previous' }, { value: 'list', label: 'Back to the list' }]} />
+        </SettingRow>
       </Section>
       <Section title="Dates" icon="calendar">
-        <SettingRow title="Week starts on"><Segmented size="sm" value={f.week_start} onChange={v => setF({ ...f, week_start: v })} options={[{ value: 1, label: 'Monday' }, { value: 6, label: 'Saturday' }, { value: 7, label: 'Sunday' }]} /></SettingRow>
-        <SettingRow title="Date format"><Select ariaLabel="Date format" value={f.date_format} onChange={v => setF({ ...f, date_format: v as DateFormat })} options={DATE_FORMATS.map(d => ({ value: d.id, label: d.label }))} /></SettingRow>
-        <SettingRow title="Time format"><Select ariaLabel="Time format" value={f.time_format} onChange={v => setF({ ...f, time_format: v as TimeFormat })} options={TIME_FORMATS.map(d => ({ value: d.id, label: d.label }))} /></SettingRow>
-        {isAdmin && <SettingRow title="App title" help="Shown in the sidebar for everyone on this box."><input value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></SettingRow>}
+        <div className="two-col tight">
+          <Field label="Date format"><Select ariaLabel="Date format" value={f.date_format} onChange={v => setF({ ...f, date_format: v as DateFormat })} options={DATE_FORMATS.map(d => ({ value: d.id, label: d.label }))} /></Field>
+          <Field label="Time format"><Select ariaLabel="Time format" value={f.time_format} onChange={v => setF({ ...f, time_format: v as TimeFormat })} options={TIME_FORMATS.map(d => ({ value: d.id, label: d.label }))} /></Field>
+        </div>
       </Section>
       <div className="row"><button type="button" className="btn primary" onClick={() => save()} disabled={busy}>Save changes</button></div>
     </div>
   )
 }
 
-function Reminders() {
+function Writing() {
   const { f, setF, save, busy } = useSettingsForm()
-  const { toast } = useToast()
-  const { run, status } = useTester()
-  const [add, setAdd] = useState('08:00')
+  const navigate = useNavigate()
+  const { data: side } = useAsync(() => api.get<Sidebar>(`${V1}/sidebar`), [])
   if (!f) return <Loading />
-  const weekly = async () => { try { const r = await api.post<{ ok: boolean; sent?: boolean; error?: string; report?: string }>(`${V1}/notify/weekly`); if (r.ok) toast(r.sent ? 'Weekly report sent' : 'Report ready (no push URL): ' + (r.report || '').split('\n')[0]); else toast(r.error || 'failed', 'err') } catch (e) { toast((e as Error).message, 'err') } }
-  const toggleDay = (d: number) => { const s = String(d); setF({ ...f, reminder_days: f.reminder_days.includes(s) ? f.reminder_days.replace(s, '') : [...f.reminder_days, s].sort().join('') }) }
-  const addTime = () => { if (/^\d{2}:\d{2}$/.test(add) && !f.reminder_times.includes(add)) setF({ ...f, reminder_times: [...f.reminder_times, add].sort() }) }
+  const accts = side?.accounts || []
+  return (
+    <div className="stack loose">
+      <Section title="Sending" icon="send">
+        <SettingRow title="Undo send" help="How long a message waits before it really goes, so you can take it back.">
+          <Segmented size="sm" value={f.undo_send_seconds} onChange={v => setF({ ...f, undo_send_seconds: v })} options={[0, 5, 10, 20, 30].map(n => ({ value: n, label: n ? `${n} s` : 'Off' }))} />
+        </SettingRow>
+        <SettingRow title="Write from" help="The account new messages start in. Replies always go from the account the mail came to.">
+          <Select ariaLabel="Default account" value={String(f.default_account || '')} onChange={v => setF({ ...f, default_account: Number(v) || 0 })} options={[{ value: '', label: 'The first account' }, ...accts.map(a => ({ value: String(a.id), label: a.label ? `${a.label} (${a.email})` : a.email }))]} />
+        </SettingRow>
+        <SettingRow title="Reply answers everyone" help="r replies to all the people on the message, not only the sender."><Switch checked={f.reply_all} onChange={v => setF({ ...f, reply_all: v })} label="Reply all" /></SettingRow>
+        <SettingRow title="Signatures" help="One per account."><button type="button" className="btn sm" onClick={() => navigate('/settings/accounts')}>Edit in Accounts</button></SettingRow>
+      </Section>
+      <div className="row"><button type="button" className="btn primary" onClick={() => save()} disabled={busy}>Save changes</button></div>
+      <TemplatesManager />
+    </div>
+  )
+}
+
+function Notifications() {
+  const { f, setF, save, busy } = useSettingsForm()
+  const { run, status } = useTester()
+  if (!f) return <Loading />
   return (
     <div className="stack loose">
       <Section title="Push" icon="bell" actions={<span className={`badge ${f.notify_configured ? 'ok' : ''}`}>{f.notify_configured ? 'on' : 'not set'}</span>}
-        sub={<>Where reminders go: an Apprise gateway (<code>…/notify/&lt;key&gt;</code>), an ntfy topic URL, or any webhook that takes JSON.</>}>
+        sub={<>Where notifications go: an Apprise gateway (<code>…/notify/&lt;key&gt;</code>), an ntfy topic URL, or any webhook that takes JSON.</>}>
         <SettingRow title="URL" stack><input value={f.notify_url} onChange={e => setF({ ...f, notify_url: e.target.value })} placeholder="http://apprise:8000/notify/mail" /></SettingRow>
         <SettingRow title="Format"><Segmented value={f.notify_format} onChange={v => setF({ ...f, notify_format: v })} options={[{ value: 'apprise', label: 'Apprise' }, { value: 'ntfy', label: 'ntfy' }, { value: 'json', label: 'JSON' }]} size="sm" /></SettingRow>
       </Section>
-      <Section title="Practice reminders" icon="clock" sub="Server time.">
-        <SettingRow title="At" stack>
-          <div className="row wrap">
-            {f.reminder_times.map(t => <span key={t} className="chip time-chip">{t}<button type="button" aria-label={`Remove ${t}`} onClick={() => setF({ ...f, reminder_times: f.reminder_times.filter(x => x !== t) })}><Icon name="x" size={12} /></button></span>)}
-            {f.reminder_times.length === 0 && <span className="muted small">No reminders.</span>}
-            <input type="time" value={add} onChange={e => setAdd(e.target.value)} className="set-time" aria-label="Reminder time" />
-            <button type="button" className="btn sm" onClick={addTime} disabled={f.reminder_times.length >= 6}><Icon name="plus" size={13} />Add</button>
-          </div>
+      <Section title="New mail" icon="mail">
+        <SettingRow title="Tell me about" help="Newsletters and automatic mail never push, unless a rule says so.">
+          <Segmented size="sm" value={f.notify_new} onChange={v => setF({ ...f, notify_new: v })} options={[{ value: 'off', label: 'Nothing' }, { value: 'vip', label: 'VIPs only' }, { value: 'people', label: 'People' }, { value: 'all', label: 'Everything' }]} />
         </SettingRow>
-        <SettingRow title="On" stack>
-          <div className="row wrap">{DAYS.map(([d, l]) => <button key={d} type="button" className={`chip day-chip ${f.reminder_days.includes(String(d)) ? 'on' : ''}`} onClick={() => toggleDay(d)}>{l.slice(0, 3)}</button>)}</div>
-        </SettingRow>
-        <SettingRow title="Skip when done" help="No reminder once today’s goal is reached."><Switch checked={f.reminder_skip_done} onChange={v => setF({ ...f, reminder_skip_done: v })} label="Skip when done" /></SettingRow>
-      </Section>
-      <Section title="Other pushes" icon="flame">
-        <SettingRow title="Streak at risk" help="One evening nudge when you have a streak and nothing practised yet today.">
-          <div className="row"><Switch checked={f.notify_streak} onChange={v => setF({ ...f, notify_streak: v })} label="Streak nudge" />{f.notify_streak && <Select ariaLabel="Streak hour" value={String(f.streak_hour)} onChange={v => setF({ ...f, streak_hour: Number(v) })} options={HOURS} />}</div>
-        </SettingRow>
-        <SettingRow title="Milestones" help="When you reach a new milestone."><Switch checked={f.notify_milestones} onChange={v => setF({ ...f, notify_milestones: v })} label="Milestones" /></SettingRow>
-        <SettingRow title="Weekly report" help="Minutes, days, what you practised most and how you felt.">
-          <div className="row wrap"><Switch checked={f.notify_weekly} onChange={v => setF({ ...f, notify_weekly: v })} label="Weekly report" />{f.notify_weekly && <><Select ariaLabel="Weekly day" value={String(f.weekly_day)} onChange={v => setF({ ...f, weekly_day: Number(v) })} options={DAYS.map(([d, l]) => ({ value: String(d), label: l }))} /><Select ariaLabel="Weekly hour" value={String(f.weekly_hour)} onChange={v => setF({ ...f, weekly_hour: Number(v) })} options={HOURS} /></>}</div>
+        <SettingRow title="Quiet hours" help="No pushes between these hours (same hour = never quiet).">
+          <div className="row"><Select ariaLabel="Quiet from" value={String(f.quiet_from)} onChange={v => setF({ ...f, quiet_from: Number(v) })} options={HOURS} /><span className="muted">to</span><Select ariaLabel="Quiet until" value={String(f.quiet_to)} onChange={v => setF({ ...f, quiet_to: Number(v) })} options={HOURS} /></div>
         </SettingRow>
       </Section>
       <div className="row wrap">
         <button type="button" className="btn primary" onClick={() => save()} disabled={busy}>Save changes</button>
         <button type="button" className="btn" onClick={() => run('notify', f.notify_url, '', { format: f.notify_format })} disabled={!f.notify_url}><Icon name="mail" size={15} />Send a test</button>
-        <button type="button" className="btn" onClick={weekly}><Icon name="chart" size={15} />Send the weekly report now</button>
         {status('notify')}
       </div>
     </div>
   )
 }
 
+const APPS: { slug: string; name: string; icon: string; what: string; help: string; port: string }[] = [
+  { slug: 'documents', name: 'Pocket Documents', icon: 'file-text', what: 'Save attachments and whole emails as documents (with OCR and search there), and attach your documents to new mail.', help: 'Pocket Documents → Settings → API tokens', port: '8183' },
+  { slug: 'files', name: 'Pocket Files', icon: 'folder', what: 'Save attachments into your files, and attach files from there.', help: 'Pocket Files → Settings → API tokens', port: '8187' },
+  { slug: 'tasks', name: 'Pocket Tasks', icon: 'check-square', what: 'Turn an email into a task that links back to it — by hand or with a rule.', help: 'Pocket Tasks → Settings → API tokens', port: '8184' },
+  { slug: 'calendar', name: 'Pocket Calendar', icon: 'calendar', what: 'Add invitations and dates from email to your calendar, and see what else is on that day.', help: 'Pocket Calendar → Settings → API tokens', port: '8190' },
+  { slug: 'contacts', name: 'Pocket Contacts', icon: 'user', what: 'Addresses as you type, who wrote to you (with their photo), and add new people.', help: 'Pocket Contacts → Settings → API tokens', port: '8191' },
+  { slug: 'notes', name: 'Pocket Notes', icon: 'note', what: 'Save an email to your notes.', help: 'Pocket Notes → Settings → API tokens', port: '8182' },
+  { slug: 'money', name: 'Pocket Money', icon: 'wallet', what: 'Record a receipt from your email as an expense.', help: 'Pocket Money → Settings → API tokens', port: '8178' },
+]
+
 function Integrations() {
   const { f, setF, save, busy } = useSettingsForm()
   const { run, status } = useTester()
-  const { toast } = useToast()
-  const { data: rules, reload } = useAsync(() => api.get<HabitRule[]>(`${V1}/rules`), [])
-  const [edit, setEdit] = useState<HabitRule | null | 'new'>(null)
   if (!f) return <Loading />
   const coreOn = f.core_configured && f.core_registered !== false
   const eff = (m: ConnMode): ConnMode => !coreOn && m === 'core' ? 'off' : m
-  const toggleRule = async (r: HabitRule) => { try { await api.put(`${V1}/rules/${r.id}`, { ...r, enabled: !r.enabled }); reload() } catch (e) { toast((e as Error).message, 'err') } }
-  const delRule = async (r: HabitRule) => { try { await api.del(`${V1}/rules/${r.id}`); reload() } catch (e) { toast((e as Error).message, 'err') } }
-  const musicMode = eff(f.music_mode)
+  const str = (k: string) => (f[k] as string) || ''
+  const immich = eff(f.immich_mode)
   return (
     <div className="stack loose">
-      <div className="callout info"><Icon name="info" size={15} /><div>These connections are yours. Through <b>Pocket Core</b> Still acts as you in your own Pocket apps with nothing to paste (switch it off for yourself in Pocket Core → Settings → Apps acting for me); <b>Direct</b> uses a URL and an API token you enter.{!coreOn && <CoreHint />}</div></div>
-      <Section title="Pocket Habits — tick habits for you" icon="habit" actions={connBadge(eff(f.habits_mode), f.habits_via)}
-        sub="When a day’s practice reaches the minutes you set, the habit you choose (“Meditate”, “Breathe”) is ticked, so its streak keeps itself.">
-        <Connection app="Pocket Habits" mode={f.habits_mode} via={f.habits_via} detail={f.habits_detail} core={coreOn} hasToken={!!f.habits_token}
-          onMode={m => save({ habits_mode: m })} onDisconnect={() => save({ habits_url: '', habits_token: '' })}
-          test={<><button type="button" className="btn sm" onClick={() => run('habits', f.habits_url, f.habits_token)}>Test connection</button>{status('habits')}</>}
-          direct={<div className="two-col tight">
-            <Field label="URL" help="Inside Docker use http://host.docker.internal:PORT or the service name."><input value={f.habits_url} onChange={e => setF({ ...f, habits_url: e.target.value })} placeholder="http://host.docker.internal:8169" /></Field>
-            <Field label="API token" help="Pocket Habits → Settings → API tokens"><input value={f.habits_token} onChange={e => setF({ ...f, habits_token: e.target.value })} autoComplete="off" /></Field>
-          </div>} />
-        {eff(f.habits_mode) !== 'off' && <div className="mt stack">
-          <div className="row"><h4 className="grow">Rules</h4><button type="button" className="btn sm" onClick={() => setEdit('new')}><Icon name="plus" size={14} />Add a rule</button></div>
-          {rules && rules.length === 0 && <p className="muted small">No rules yet: nothing is ticked automatically.</p>}
-          {rules?.map(r => <div key={r.id} className={`rule ${r.enabled ? '' : 'off'}`}><Switch checked={r.enabled} onChange={() => toggleRule(r)} label="Enabled" size="sm" /><span className="grow">{r.min_minutes ? `${r.min_minutes}+ min of ` : 'Any '}{r.kind === 'any' ? (r.min_minutes ? 'practice' : 'practice') : (KIND_NAME[r.kind] || r.kind).toLowerCase()} in a day → <b>{r.habit_name || `habit #${r.habit_id}`}</b></span><button type="button" className="btn ghost sm" onClick={() => setEdit(r)}>Edit</button><button type="button" className="btn ghost sm danger-text" onClick={() => delRule(r)}>Remove</button></div>)}
-          {rules && rules.length > 0 && <p className="muted small">Checked right after each practice and every five minutes for the last week.</p>}
-        </div>}
-      </Section>
-      <Section title="Pocket Health — mindful minutes and your body" icon="heart" actions={connBadge(eff(f.health_mode), f.health_via)}
-        sub="Each practice is recorded as mindful minutes in Pocket Health. Back the other way, Statistics compares heart rate variability, resting heart rate and sleep on days with and without practice.">
-        <Connection app="Pocket Health" mode={f.health_mode} via={f.health_via} detail={f.health_detail} core={coreOn} hasToken={!!f.health_token}
-          onMode={m => save({ health_mode: m })} onDisconnect={() => save({ health_url: '', health_token: '' })}
-          test={<><button type="button" className="btn sm" onClick={() => run('health', f.health_url, f.health_token)}>Test connection</button>{status('health')}</>}
-          direct={<div className="two-col tight">
-            <Field label="URL"><input value={f.health_url} onChange={e => setF({ ...f, health_url: e.target.value })} placeholder="http://host.docker.internal:8199" /></Field>
-            <Field label="API token" help="Pocket Health → Settings → API & shortcuts"><input value={f.health_token} onChange={e => setF({ ...f, health_token: e.target.value })} autoComplete="off" /></Field>
-          </div>} />
-        {eff(f.health_mode) !== 'off' && <div className="mt">
-          <SettingRow title="Record mindful minutes" help="Practices of the last week that are not there yet are sent when you switch this on."><Switch checked={f.health_sync} onChange={v => save({ health_sync: v })} label="Mindful minutes" /></SettingRow>
-          <SettingRow title="Body on practice days" help="Read heart rate variability, resting heart rate and sleep for the statistics."><Switch checked={f.health_insights} onChange={v => save({ health_insights: v })} label="Health insights" /></SettingRow>
-        </div>}
-      </Section>
-      <Section title="Background music — Navidrome" icon="music" actions={musicMode === 'off' ? <span className="badge">off</span> : <span className="badge ok">{musicMode === 'core' ? 'Pocket Core' : 'direct'}</span>}
-        sub="Play one of your own Navidrome playlists (an ambient folder, a quiet album) behind a sit. Still streams it through itself, so the password never reaches the browser.">
+      <div className="callout info"><Icon name="info" size={15} /><div>These connections are yours. Through <b>Pocket Core</b> Mail acts as you in your own Pocket apps with nothing to paste (switch it off for yourself in Pocket Core → Settings → Apps acting for me); <b>Direct</b> uses a URL and an API token you enter.{!coreOn && <CoreHint />}</div></div>
+      {APPS.map(a => (
+        <Section key={a.slug} title={a.name} icon={a.icon} actions={connBadge(eff(str(a.slug + '_mode') as ConnMode || 'off'), str(a.slug + '_via'))} sub={a.what}>
+          <Connection app={a.name} mode={(str(a.slug + '_mode') || 'off') as ConnMode} via={str(a.slug + '_via')} detail={str(a.slug + '_detail')} core={coreOn} hasToken={!!str(a.slug + '_token')}
+            onMode={m => save({ [a.slug + '_mode']: m })} onDisconnect={() => save({ [a.slug + '_url']: '', [a.slug + '_token']: '' })}
+            test={<><button type="button" className="btn sm" onClick={() => run(a.slug, str(a.slug + '_url'), str(a.slug + '_token'))}>Test connection</button>{status(a.slug)}</>}
+            direct={<div className="two-col tight">
+              <Field label="URL" help="Inside Docker use http://host.docker.internal:PORT or the service name."><input value={str(a.slug + '_url')} onChange={e => setF({ ...f, [a.slug + '_url']: e.target.value })} placeholder={`http://host.docker.internal:${a.port}`} /></Field>
+              <Field label="API token" help={a.help}><input value={str(a.slug + '_token')} onChange={e => setF({ ...f, [a.slug + '_token']: e.target.value })} autoComplete="off" /></Field>
+            </div>} />
+        </Section>
+      ))}
+      <Section title="Photos — your Immich library" icon="image" actions={immich === 'off' ? <span className="badge">off</span> : <span className="badge ok">{immich === 'core' ? 'Pocket Core' : 'direct'}</span>}
+        sub="Save photos people send you straight into your photo library (Pocket Photos shows it).">
         <div className="conn-block">
           <div className="conn-mode">
-            <Segmented size="sm" value={musicMode} onChange={m => save({ music_mode: m as ConnMode })} options={[
-              { value: 'core', label: 'Pocket Core', title: coreOn ? 'Your own Navidrome login from Pocket Core (My logins)' : 'Needs Pocket Core: there is none on this box', disabled: !coreOn },
+            <Segmented size="sm" value={immich} onChange={m => save({ immich_mode: m as ConnMode })} options={[
+              { value: 'core', label: 'Pocket Core', title: coreOn ? 'Your own Immich key from Pocket Core (My logins)' : 'Needs Pocket Core: there is none on this box', disabled: !coreOn },
               { value: 'direct', label: 'Direct' }, { value: 'off', label: 'Off' }]} />
           </div>
-          <div className={`conn-status ${musicMode === 'off' ? '' : 'ok'}`}><span className="dot" />{musicMode === 'off' ? 'Off: only the built-in sounds.' : musicMode === 'core' ? 'Your own Navidrome login from Pocket Core (Core → My logins → Navidrome). Use Test to check it.' : 'Your Navidrome address, user and password.'}</div>
-          {musicMode === 'direct' && <div className="three-col tight">
-            <Field label="URL"><input value={f.music_url} onChange={e => setF({ ...f, music_url: e.target.value })} placeholder="http://host.docker.internal:4533" /></Field>
-            <Field label="User"><input value={f.music_user} onChange={e => setF({ ...f, music_user: e.target.value })} autoComplete="off" /></Field>
-            <Field label="Password"><input type="password" value={f.music_password} onChange={e => setF({ ...f, music_password: e.target.value })} autoComplete="new-password" /></Field>
+          <div className={`conn-status ${immich === 'off' ? '' : 'ok'}`}><span className="dot" />{immich === 'off' ? 'Off: photos can be downloaded or saved to Files and Documents.' : immich === 'core' ? 'Your own Immich login from Pocket Core (Core → My logins → Immich). Use Test to check it.' : 'Your Immich address and API key.'}</div>
+          {immich === 'direct' && <div className="two-col tight">
+            <Field label="URL"><input value={f.immich_url} onChange={e => setF({ ...f, immich_url: e.target.value })} placeholder="http://host.docker.internal:8145" /></Field>
+            <Field label="API key" help="Immich → Account settings → API keys"><input value={f.immich_key} onChange={e => setF({ ...f, immich_key: e.target.value })} autoComplete="off" /></Field>
           </div>}
-          {musicMode !== 'off' && <div className="row wrap"><button type="button" className="btn sm" onClick={() => musicMode === 'direct' ? run('music', f.music_url, f.music_password, { user: f.music_user }) : run('music', '', '')}>Test connection</button>{status('music')}</div>}
+          {immich !== 'off' && <div className="row wrap"><button type="button" className="btn sm" onClick={() => run('immich', immich === 'direct' ? f.immich_url : '', immich === 'direct' ? f.immich_key : '')}>Test connection</button>{status('immich')}</div>}
         </div>
       </Section>
-      <Section title="Other Pocket apps" icon="layers" sub="Still offers your practice to the rest of the box through Pocket Core: Pocket Day writes it into your journal, Pocket Calendar can show practices on the calendar, a watch app could log sits here. Your notes never leave this app.">
+      <Section title="Other Pocket apps" icon="layers" sub="Mail offers your email to the rest of the box through Pocket Core, only where you allow it in Core → Links.">
         <dl className="set-dl">
-          <div><dt>mindfulness:read</dt><dd className="muted">Practices, minutes, streaks, progress on the Path — without notes.</dd></div>
-          <div><dt>mindfulness:write</dt><dd className="muted">Log practices done elsewhere; only what that app logged itself can be changed by it.</dd></div>
+          <div><dt>mail:read</dt><dd className="muted">Search and read your messages — Pocket Day’s journal, Pocket AI answering “what did the plumber say?”. Never your passwords.</dd></div>
+          <div><dt>mail:send</dt><dd className="muted">Send from one of your accounts — an invoice from Pocket Invoicing, a book to your Kindle. It lands in Sent like any other.</dd></div>
         </dl>
       </Section>
       <div className="row"><button type="button" className="btn primary" onClick={() => save()} disabled={busy}>Save changes</button></div>
-      {edit && <RuleModal rule={edit === 'new' ? undefined : edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />}
     </div>
-  )
-}
-
-function RuleModal({ rule, onClose, onSaved }: { rule?: HabitRule; onClose: () => void; onSaved: () => void }) {
-  const { toast } = useToast()
-  const { data } = useAsync(() => api.get<{ connected: boolean; detail?: string; habits: Habit[] }>(`${V1}/habits/list`), [])
-  const [f, setF] = useState({ kind: rule?.kind || 'any', min_minutes: String(rule?.min_minutes ?? 10), habit_id: rule?.habit_id || 0, habit_name: rule?.habit_name || '' })
-  const [busy, setBusy] = useState(false)
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault(); setBusy(true)
-    const body = { kind: f.kind, min_minutes: Number(f.min_minutes) || 0, habit_id: f.habit_id, habit_name: f.habit_name, enabled: rule?.enabled ?? true }
-    try { if (rule) await api.put(`${V1}/rules/${rule.id}`, body); else await api.post(`${V1}/rules`, body); onSaved() } catch (err) { toast((err as Error).message, 'err') } finally { setBusy(false) }
-  }
-  return (
-    <Modal title={rule ? 'Edit rule' : 'Tick a habit when…'} onClose={onClose} size="sm">
-      <form onSubmit={save} className="grid" style={{ gap: 14 }}>
-        <Field group label="Practice of"><Select ariaLabel="Kind" value={f.kind} onChange={v => setF({ ...f, kind: v })} options={[{ value: 'any', label: 'Any kind' }, ...Object.entries(KIND_NAME).map(([value, label]) => ({ value, label }))]} /></Field>
-        <Field label="At least, in a day (minutes)" help="0 = any practice of that kind."><input type="number" min={0} max={600} value={f.min_minutes} onChange={e => setF({ ...f, min_minutes: e.target.value })} /></Field>
-        <Field group label="Tick this habit">
-          {!data ? <Loading /> : !data.connected ? <p className="bad small">{data.detail}</p> :
-            <Select ariaLabel="Habit" value={f.habit_id ? String(f.habit_id) : ''} onChange={v => { const h = data.habits.find(x => String(x.id) === v); setF({ ...f, habit_id: Number(v), habit_name: h?.name || '' }) }} options={data.habits.map(h => ({ value: String(h.id), label: h.name }))} placeholder="Choose a habit…" />}
-        </Field>
-        <div className="form-actions"><button type="button" className="btn" onClick={onClose}>Cancel</button><button className="btn primary" disabled={busy || !f.habit_id}>Save</button></div>
-      </form>
-    </Modal>
   )
 }
 
@@ -327,7 +240,7 @@ function AITab() {
   const shown = !coreOn && f.ai_provider === 'pocket' ? 'openai' : (f.ai_provider || 'auto')
   return (
     <div className="stack loose">
-      <Section title="What the AI does" icon="sparkles" sub="Writes a short reflection on your practice in Statistics and answers questions, from your own log (what, when, how long, how you felt, your notes). It is not a therapist, and nothing is sent unless you press the button.">
+      <Section title="What the AI does" icon="sparkles" sub="Summarizes long conversations, suggests short replies, writes or polishes a message from a few words, reads dates and amounts out of mail, and catches you up on what came in. Nothing is sent to the AI until you press a button (quick replies and “catch me up” only for mail from people).">
         {ai && (ai.ready ? <p className="muted small row" style={{ gap: 6 }}><Icon name="sparkles" size={13} />{ai.provider === 'pocket' ? 'Pocket AI' : 'Your OpenAI key'} is ready.</p>
           : <div className="callout info"><Icon name="info" size={15} /><div>No AI connected{ai.detail ? ` (${ai.detail})` : ''}.{!coreOn && <CoreHint />}</div></div>)}
       </Section>
@@ -347,6 +260,10 @@ function AITab() {
           </>}
         </div>
       </Section>
+      <Section title="Your preferences" icon="sliders">
+        <SettingRow title="Language" help="Replies and summaries in this language. Empty = the language of the email."><input value={f.ai_language} onChange={e => setF({ ...f, ai_language: e.target.value })} placeholder="e.g. English, Srpski" /></SettingRow>
+        <SettingRow title="“Catch me up”" help="A small card above the inbox that summarizes unread mail from people when you ask."><Switch checked={f.ai_digest} onChange={v => setF({ ...f, ai_digest: v })} label="Catch me up" /></SettingRow>
+      </Section>
       <div className="row wrap">
         <button type="button" className="btn primary" onClick={() => save()} disabled={busy}>Save changes</button>
         {(shown === 'openai' || (!coreOn && shown === 'auto')) && <><button type="button" className="btn" onClick={() => run('openai', f.openai_base_url, f.openai_api_key)} disabled={!f.openai_api_key}>Test the OpenAI key</button>{status('openai')}</>}
@@ -354,41 +271,6 @@ function AITab() {
     </div>
   )
 }
-
-function Connection({ app, mode: saved, via, detail, core, onMode, onDisconnect, hasToken, test, direct }: {
-  app: string; mode: ConnMode; via: string; detail: string; core: boolean; onMode: (m: ConnMode) => void; onDisconnect: () => void
-  hasToken: boolean; test: React.ReactNode; direct: React.ReactNode
-}) {
-  const [advanced, setAdvanced] = useState(saved === 'direct')
-  const mode: ConnMode = !core && saved === 'core' ? 'off' : saved
-  const ok = via !== '' && mode !== 'off'
-  const showDirect = !core || mode === 'direct' || advanced
-  const line = mode === 'off' ? `Off: Still does not talk to ${app}.`
-    : mode === 'core' ? (ok ? `Connected through Pocket Core, as you${detail ? ` (${detail})` : ''}. Nothing to fill in; switch it off for yourself in Pocket Core → Settings → Apps acting for me.` : `Not connected: ${detail}.`)
-    : (ok ? `Direct connection with your own ${app} URL and token; use Test connection to check it.` : `Not connected: ${detail || 'add the URL and a token'}.`)
-  return (
-    <div className="conn-block">
-      <div className="conn-mode">
-        <Segmented size="sm" value={mode} onChange={m => onMode(m as ConnMode)} options={[
-          { value: 'core', label: 'Pocket Core', title: core ? 'Through Pocket Core: per person, nothing to paste' : 'Needs Pocket Core: there is none on this box', disabled: !core },
-          ...(showDirect ? [{ value: 'direct', label: 'Direct', title: 'Your own URL and API token' }] : []),
-          { value: 'off', label: 'Off' },
-        ]} />
-        {!showDirect && <button type="button" className="conn-advanced" onClick={() => setAdvanced(true)}>Advanced: connect directly with a URL and key</button>}
-      </div>
-      <div className={`conn-status ${mode === 'off' ? '' : ok ? 'ok' : 'bad'}`}><span className="dot" />{line}</div>
-      {mode === 'direct' && <>
-        {direct}
-        <div className="row wrap">{test}{hasToken && <button type="button" className="btn sm ghost danger-text" onClick={onDisconnect} title="Remove the saved URL and token">Disconnect</button>}</div>
-      </>}
-      {mode === 'core' && <div className="row wrap">{test}</div>}
-    </div>
-  )
-}
-
-const connBadge = (mode: ConnMode, via: string) => mode === 'off' ? <span className="badge">off</span>
-  : via ? <span className="badge ok">{via === 'core' ? 'Pocket Core' : 'direct'}</span>
-  : <span className="badge warn">not connected</span>
 
 function Users() {
   const { user, users, reloadMeta, status } = useApp()
@@ -399,7 +281,7 @@ function Users() {
   const run = async (fn: () => Promise<unknown>, msg: string) => { try { await fn(); await reloadMeta(); toast(msg) } catch (e) { toast((e as Error).message, 'err') } }
   return (
     <Section title="People on this box" actions={isAdmin && <button type="button" className="btn primary sm" onClick={() => setEdit({ role: 'member' })}><Icon name="plus" size={14} />Add person</button>}
-      sub="Everyone signs in with their own account and has their own practice, journal, progress and connections. Admins manage accounts; they do not see anyone else’s practice.">
+      sub="Everyone signs in with their own account and adds their own mail accounts. Admins manage accounts; they never see anyone else’s mail.">
       <div className="set-people">
         {users.map(u => (
           <div key={u.id} className="set-person">
@@ -414,7 +296,7 @@ function Users() {
       </div>
       {status?.auth_mode !== 'local' && <p className="muted small mt">Auth mode is <code>{status?.auth_mode}</code>: users are created automatically on first visit; passwords are not used here.</p>}
       {edit && <UserModal user={edit} local={status?.auth_mode === 'local'} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reloadMeta() }} />}
-      {del && <Confirm confirmLabel="Remove" title={`Remove ${del.name || del.email}?`} message="Their account is deleted together with their whole practice journal." onCancel={() => setDel(null)} onConfirm={() => { const d = del; setDel(null); run(() => api.del(`${V1}/users/${d.id}`), 'User removed') }} />}
+      {del && <Confirm confirmLabel="Remove" title={`Remove ${del.name || del.email}?`} message="Their account is deleted together with their mail accounts and everything synced here. Nothing is deleted on their mail servers." onCancel={() => setDel(null)} onConfirm={() => { const d = del; setDel(null); run(() => api.del(`${V1}/users/${d.id}`), 'User removed') }} />}
     </Section>
   )
 }
@@ -455,7 +337,7 @@ function Profile() {
         <Avatar name={user?.name} email={user?.email} size={56} />
         <div className="grow"><h3>{user?.name || user?.email}</h3><p className="muted small">{user?.email} · {user?.role}</p></div>
       </div>
-      <Section title="You">
+      <Section title="You" sub="This is your Pocket account, not a mail account (those are under Accounts).">
         <div className="stack">
           <Field label="Name"><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
           <Field label="Email"><input type="email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} /></Field>
@@ -484,7 +366,7 @@ function Tokens() {
   const base = settings?.base_url || window.location.origin
   return (
     <div className="stack loose">
-      <Section title="Personal tokens" icon="key" sub={<>Use as <code>Authorization: Bearer &lt;token&gt;</code>. A token acts as you: it can read and change everything, feed a Homepage widget (<code>GET /api/v1/dashboard</code>) or log a sit from a Shortcut. See <code>docs/api.md</code>.</>}>
+      <Section title="Personal tokens" icon="key" sub={<>Use as <code>Authorization: Bearer &lt;token&gt;</code>. A token acts as you: it can read your mail and send from your accounts, so keep it safe. See <code>docs/api.md</code>.</>}>
         <form onSubmit={create} className="row mb"><input value={name} onChange={e => setName(e.target.value)} placeholder="Token name (e.g. Homepage)" /><button className="btn primary"><Icon name="plus" size={15} />Create</button></form>
         {fresh && <div className="set-fresh mb"><div className="row"><Icon name="check-circle" size={16} /><b>Copy it now — it is shown once.</b></div><pre className="mono">{fresh}</pre></div>}
         {data && data.length > 0 ? (
@@ -497,11 +379,10 @@ function Tokens() {
       </Section>
       <Section title="Endpoints" icon="code" sub={<>At <code>{base}/api/v1</code>.</>}>
         <dl className="set-dl">
-          <div><dt><code>POST /practices</code></dt><dd className="muted"><code>{'{"technique":"box","duration_s":300,"calm_before":2,"calm_after":4}'}</code> — log a practice (a Siri Shortcut after a sit).</dd></div>
-          <div><dt><code>GET /dashboard</code></dt><dd className="muted">Today’s minutes, goal, streak, level — for Homepage.</dd></div>
-          <div><dt><code>GET /stats?range=m</code></dt><dd className="muted">Everything on the Statistics page.</dd></div>
-          <div><dt><code>GET /day/YYYY-MM-DD</code></dt><dd className="muted">One day’s practice — what Pocket Day reads.</dd></div>
-          <div><dt><code>GET /overlay?from=&to=</code></dt><dd className="muted">Practices as calendar items — for Pocket Calendar.</dd></div>
+          <div><dt><code>GET /counts</code></dt><dd className="muted">Unread in the inbox, starred, snoozed, scheduled — for a Homepage widget.</dd></div>
+          <div><dt><code>GET /messages?box=inbox&amp;q=…</code></dt><dd className="muted">List or search messages (the same operators as the search field).</dd></div>
+          <div><dt><code>POST /send</code></dt><dd className="muted"><code>{'{"to":[{"addr":"a@b.c"}],"subject":"Hi","body_html":"<p>…</p>"}'}</code> — send from a script or a Shortcut.</dd></div>
+          <div><dt><code>GET /summary/YYYY-MM-DD</code></dt><dd className="muted">One day’s mail in numbers — what Pocket Day reads.</dd></div>
         </dl>
       </Section>
     </div>
@@ -519,11 +400,11 @@ function Data() {
   return (
     <div className="stack loose">
       {user?.role === 'admin' && <Section title="Database backup" icon="database" sub="The whole box, every account — admins only.">
-        <p className="muted">A consistent copy of the SQLite database (<code>VACUUM INTO</code>). Restore by stopping the app and replacing <code>pocket-mail.db</code> in the data directory.</p>
+        <p className="muted">A consistent copy of the SQLite database (<code>VACUUM INTO</code>). Restore by stopping the app and replacing <code>pocket-mail.db</code> in the data directory. Keep <code>secret.key</code> next to it: without it the saved mail passwords cannot be opened.</p>
         <a className="btn primary" href={`${V1}/backup`}><Icon name="download" size={15} />Download database</a>
       </Section>}
-      <Section title="Export & import" icon="archive" sub="Everything of yours as one JSON file (practices, your patterns and timers, lessons done, favourites, habit rules), or the practices as a CSV. Importing the same file twice adds nothing; imported practices are not sent to Pocket Health again.">
-        <div className="row wrap"><a className="btn" href={`${V1}/export.json`}><Icon name="download" size={15} />Export JSON</a><a className="btn" href={`${V1}/export.csv`}><Icon name="download" size={15} />Practices CSV</a><label className="btn"><Icon name="upload" size={15} />{busy ? 'Importing…' : 'Import JSON…'}<input type="file" accept="application/json,.json" hidden onChange={e => e.target.files?.[0] && importJSON(e.target.files[0])} /></label></div>
+      <Section title="Export & import" icon="archive" sub="Your setup as one JSON file: accounts (without passwords), rules, templates and your choices about senders. The mail itself stays on your mail servers; download any message as .eml from its More menu → Show original. The people you write with as a CSV.">
+        <div className="row wrap"><a className="btn" href={`${V1}/export.json`}><Icon name="download" size={15} />Export JSON</a><a className="btn" href={`${V1}/export.csv`}><Icon name="download" size={15} />People CSV</a><label className="btn"><Icon name="upload" size={15} />{busy ? 'Importing…' : 'Import JSON…'}<input type="file" accept="application/json,.json" hidden onChange={e => e.target.files?.[0] && importJSON(e.target.files[0])} /></label></div>
       </Section>
     </div>
   )
@@ -536,7 +417,7 @@ function About() {
   if (!data) return <Loading />
   const counts = (data.counts || {}) as Record<string, number>
   const core = (data.core || {}) as { configured?: boolean; registered?: boolean; url?: string; error?: string }
-  const tiles: [string, number | undefined, string][] = [['Practices', counts.practices, 'journal'], ['Lessons done', counts.lessons_done, 'mountain'], ['Milestones', counts.achievements, 'trophy'], ['Your own', counts.presets, 'sliders']]
+  const tiles: [string, number | undefined, string][] = [['Accounts', counts.accounts, 'mail'], ['Messages here', counts.messages, 'inbox'], ['Attachments', counts.attachments, 'paperclip'], ['Rules', counts.rules, 'sliders']]
   const rows: [string, React.ReactNode][] = [
     ['Version', <code key="v">{String(data.version)}</code>],
     ['Uptime', String(data.uptime)],
@@ -553,7 +434,7 @@ function About() {
         <img src="/favicon.svg" alt="" width={48} height={48} />
         <div>
           <h3>Pocket Mail</h3>
-          <p className="muted small">Breathe, sit, notice: guided breathing patterns, a meditation timer with bells and background sounds, the Path from your first breath to sitting still, short courses, a practice journal with how you felt, streaks, milestones and statistics. One binary, one SQLite file, one volume.</p>
+          <p className="muted small">All your email in one calm inbox: Gmail, iCloud, Outlook and any IMAP account, with conversations, search, snooze, send later and undo send, one-click unsubscribe, rules, and attachments saved straight to your Pocket apps. One binary, one SQLite file, one volume.</p>
         </div>
       </div>
       <div className="set-stats">
@@ -568,10 +449,9 @@ function About() {
       </Section>
       <div className="row wrap">
         <button type="button" className="btn" onClick={() => setKeys(true)}><Icon name="keyboard" size={15} />Keyboard shortcuts</button>
-        <Link className="btn" to="/milestones"><Icon name="trophy" size={15} />Milestones</Link>
         <a className="btn" href="https://github.com/abjelosevic88/pocket-homelab-email" target="_blank" rel="noreferrer"><Icon name="external" size={15} />Project on GitHub</a>
       </div>
-      <p className="muted small">Open source (MIT). Part of the Pocket apps: Pocket Core connects them — Habits, Health, Day, Calendar and more. Not medical advice; if you are struggling, talk to someone you trust or a professional.</p>
+      <p className="muted small">Open source (MIT). Part of the Pocket apps: Pocket Core connects them — Documents, Files, Tasks, Calendar, Contacts, Notes, Money, Day and Pocket AI.</p>
       {keys && <ShortcutsSheet onClose={() => setKeys(false)} />}
     </div>
   )

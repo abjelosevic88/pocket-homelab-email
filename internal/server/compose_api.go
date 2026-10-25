@@ -26,6 +26,7 @@ var userHTML = func() *bluemonday.Policy {
 	p.AllowStyling()
 	p.AllowAttrs("style").Globally()
 	p.AllowAttrs("class").Globally()
+	p.AllowAttrs("data-signature", "data-quote").Globally()
 	p.AllowElements("font", "center", "span", "div", "u", "s", "strike", "small", "big")
 	p.AllowAttrs("color", "face", "size").OnElements("font")
 	p.AllowAttrs("align", "valign", "width", "height", "bgcolor", "border", "cellpadding", "cellspacing").OnElements("table", "tr", "td", "th", "img", "div", "p")
@@ -45,7 +46,7 @@ func signatureHTML(a store.Account) string {
 	if strings.TrimSpace(a.Signature) == "" {
 		return ""
 	}
-	return `<div class="pm-signature">` + a.Signature + `</div>`
+	return `<div data-signature="1" class="signature">` + a.Signature + `</div>`
 }
 
 func addrList(as []store.Address) string {

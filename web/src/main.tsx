@@ -2,8 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import './styles/base.css'
-import './styles/still.css'
-import './styles/player.css'
+import './styles/mail.css'
 import './styles/app.css'
 import './styles/settings.css'
 import { AppProvider, useApp } from './lib/app-context'
@@ -11,14 +10,11 @@ import { Loading, ToastProvider } from './components/ui'
 import Layout from './components/Layout'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import Login from './pages/Login'
-import Today from './pages/Today'
-import Breathe, { PatternPage } from './pages/Breathe'
-import Meditate from './pages/Meditate'
-import Path, { ProgramPage, LessonPage } from './pages/Path'
-import Journal, { PracticePage } from './pages/Journal'
-import Stats from './pages/Stats'
-import Milestones from './pages/Milestones'
-import Session from './pages/Session'
+import Mailbox from './pages/Mailbox'
+import Attachments from './pages/Attachments'
+import Subscriptions from './pages/Subscriptions'
+import Outbox from './pages/Outbox'
+import OpenMessage from './pages/OpenMessage'
 import Settings from './pages/Settings'
 
 function Gate({ children }: { children: React.ReactNode }) {
@@ -36,20 +32,20 @@ function App() {
       <Route path="/login" element={<Login mode="login" />} />
       <Route path="/setup" element={<Login mode="setup" />} />
       <Route path="/settings/:tab?" element={<Gate><ErrorBoundary where="settings"><Settings /></ErrorBoundary></Gate>} />
-      <Route path="/session" element={<Gate><ErrorBoundary where="session"><Session /></ErrorBoundary></Gate>} />
-      <Route element={<Gate><ErrorBoundary where="still"><Layout /></ErrorBoundary></Gate>}>
-        <Route path="/" element={<Today />} />
-        <Route path="/breathe" element={<Breathe />} />
-        <Route path="/breathe/:key" element={<PatternPage />} />
-        <Route path="/meditate" element={<Meditate />} />
-        <Route path="/path" element={<Path />} />
-        <Route path="/path/:program" element={<ProgramPage />} />
-        <Route path="/path/:program/:lesson" element={<LessonPage />} />
-        <Route path="/journal" element={<Journal />} />
-        <Route path="/journal/:id" element={<PracticePage />} />
-        <Route path="/stats" element={<Stats />} />
-        <Route path="/milestones" element={<Milestones />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+      <Route element={<Gate><ErrorBoundary where="mail"><Layout /></ErrorBoundary></Gate>}>
+        <Route path="/" element={<Navigate to="/m/inbox" replace />} />
+        <Route path="/m/:box" element={<Mailbox />} />
+        <Route path="/m/:box/:id" element={<Mailbox />} />
+        <Route path="/f/:folder" element={<Mailbox />} />
+        <Route path="/f/:folder/:id" element={<Mailbox />} />
+        <Route path="/search" element={<Mailbox />} />
+        <Route path="/search/:id" element={<Mailbox />} />
+        <Route path="/message/:id" element={<OpenMessage />} />
+        <Route path="/attachments" element={<Attachments />} />
+        <Route path="/subscriptions" element={<Subscriptions />} />
+        <Route path="/scheduled" element={<Outbox kind="scheduled" />} />
+        <Route path="/drafts" element={<Outbox kind="drafts" />} />
+        <Route path="*" element={<Navigate to="/m/inbox" replace />} />
       </Route>
     </Routes>
   )

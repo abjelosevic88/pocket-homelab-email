@@ -145,6 +145,35 @@ const P: Record<string, string> = {
   waves: 'M2 6c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4-2 2 2 4 2M2 12c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2M2 18c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2',
   maximize: 'M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3',
   journal: 'M4 4a2 2 0 0 1 2-2h12v20H6a2 2 0 0 1-2-2V4zM8 2v20M11 7h4M11 11h4',
+  // mail
+  command: 'M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z',
+  reply: 'M9 17l-5-5 5-5M4 12h11a5 5 0 0 1 5 5v2',
+  'reply-all': 'M7 17l-5-5 5-5M12 17l-5-5 5-5M7 12h9a5 5 0 0 1 5 5v2',
+  forward: 'M15 17l5-5-5-5M20 12H9a5 5 0 0 0-5 5v2',
+  send: 'M22 2L11 13M22 2l-7 20-4-9-9-4z',
+  paperclip: 'M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48',
+  image: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21',
+  folder: 'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z',
+  'folder-move': 'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2zM12 11l3 3-3 3M8 14h7',
+  'user-plus': 'M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M8.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM20 8v6M23 11h-6',
+  printer: 'M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z',
+  spam: 'M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86zM12 8v4M12 16h.01',
+  bold: 'M6 4h8a4 4 0 0 1 0 8H6zM6 12h9a4 4 0 0 1 0 8H6z',
+  italic: 'M19 4h-9M14 20H5M15 4L9 20',
+  underline: 'M6 3v7a6 6 0 0 0 12 0V3M4 21h16',
+  'list-ul': 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+  'list-ol': 'M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1',
+  quote: 'M3 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2H4c-1.25 0-2 .75-2 1.97V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .01-1 1.03V20c0 1 0 1 1 1zM15 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2h-4c-1.25 0-2 .75-2 1.97V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z',
+  eraser: 'M20 20H7L3 16a1 1 0 0 1 0-1.4l10-10a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L12 19.6M9 11l5 5',
+  'mail-open': 'M21.2 8.4c.5.38.8.97.8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0zM22 10l-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 10',
+  'star-fill': 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+  'alarm': 'M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l2 2M5 3L2 6M22 6l-3-3',
+  'pin-top': 'M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z',
+  'volume-off': 'M11 5L6 9H2v6h4l5 4zM23 9l-6 6M17 9l6 6',
+  'unsubscribe': 'M4 4h16a2 2 0 0 1 2 2v6M22 6l-10 7L2 6M2 6v12a2 2 0 0 0 2 2h9M16 19h6',
+  vip: 'M12 2l3 6 6 .9-4.5 4.4 1 6.2L12 16.6 6.5 19.5l1-6.2L3 8.9 9 8z',
+  'arrow-left': 'M19 12H5M12 19l-7-7 7-7',
+  'file-text': 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8',
   // misc
   gift: 'M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z',
   'trending-down': 'M23 18l-9.5-9.5-5 5L1 6M17 18h6v-6',
@@ -160,7 +189,7 @@ export type IconName = keyof typeof P | string
 
 export function Icon({ name, size = 16, className = '', strokeWidth = 1.75, title }: { name: IconName; size?: number; className?: string; strokeWidth?: number; title?: string }) {
   const d = P[name] || P.circle
-  const filled = name === 'more' || name === 'dot'
+  const filled = name === 'more' || name === 'dot' || name === 'star-fill'
   return (
     <svg className={`icon ${className}`} width={size} height={size} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden={title ? undefined : true} role={title ? 'img' : undefined}>
       {title && <title>{title}</title>}
@@ -168,8 +197,3 @@ export function Icon({ name, size = 16, className = '', strokeWidth = 1.75, titl
     </svg>
   )
 }
-
-/** The icon of a list kind. */
-export const KIND_ICON: Record<string, string> = { running: 'run', walking: 'footprints', hiking: 'mountain', cycling: 'bike', swimming: 'swim', strength: 'dumbbell', hiit: 'zap', yoga: 'yoga', pilates: 'yoga', core: 'dumbbell', stretching: 'yoga', rowing: 'activity', elliptical: 'activity', stairs: 'stairs', football: 'ball', basketball: 'ball', tennis: 'ball', table_tennis: 'ball', volleyball: 'ball', climbing: 'mountain', skiing: 'mountain', skating: 'activity', dance: 'music', martial_arts: 'activity', boxing: 'activity', golf: 'ball', cooldown: 'yoga', functional: 'dumbbell', cross_training: 'dumbbell', mind_body: 'brain', wheelchair: 'activity', other: 'activity' }
-/** Weather condition → icon. */
-export const WEATHER_ICON: Record<string, string> = { clear: 'sun', partly: 'cloud', cloudy: 'cloud', fog: 'wind', rain: 'cloud-rain', snow: 'snowflake', storm: 'zap' }

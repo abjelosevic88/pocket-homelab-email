@@ -1,11 +1,11 @@
 {
   "name": "Pocket Mail",
-  "short_name": "Still",
-  "description": "Breathe, sit, notice: breathing patterns, a meditation timer, the Path and your practice journal.",
+  "short_name": "Mail",
+  "description": "All your email in one calm inbox: Gmail, iCloud, Outlook and any IMAP account.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f6f8",
-  "theme_color": "#3f7f6b",
+  "theme_color": "#0b6bcb",
   "icons": [
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
@@ -14,9 +14,8 @@
     { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
   ],
   "shortcuts": [
-    { "name": "One-minute reset", "url": "/session?mode=breath&technique=sigh&min=1" },
-    { "name": "Silent sit", "url": "/session?mode=timer&technique=silent&min=10" },
-    { "name": "The Path", "url": "/path" },
-    { "name": "Add a practice", "url": "/?add=1" }
+    { "name": "New message", "url": "/m/inbox?compose=1" },
+    { "name": "Unread", "url": "/m/unread" },
+    { "name": "Starred", "url": "/m/starred" }
   ]
 }

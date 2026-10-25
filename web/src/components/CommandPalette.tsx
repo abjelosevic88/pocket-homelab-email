@@ -1,14 +1,12 @@
-// ⌘K / "/" — start a breathing pattern or a meditation, jump to a page, or run a command from the keyboard.
+// ⌘K — jump to a view, an account, a setting, or run a command from the keyboard.
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import type { Library } from '../lib/types'
-import { sessionURL } from '../lib/session'
 import { Icon } from './icons'
 
 export interface PaletteCommand { id: string; label: string; icon: string; hint?: string; keywords?: string; run: () => void }
 
-export function CommandPalette({ onClose, commands, library }: { onClose: () => void; commands: PaletteCommand[]; library: Library | null }) {
+export function CommandPalette({ onClose, commands }: { onClose: () => void; commands: PaletteCommand[] }) {
   const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [hi, setHi] = useState(0)
@@ -16,21 +14,13 @@ export function CommandPalette({ onClose, commands, library }: { onClose: () => 
 
   type Row = { key: string; group: string; icon: React.ReactNode; label: React.ReactNode; sub?: React.ReactNode; hint?: string; run: () => void }
   const rows = useMemo<Row[]>(() => {
-    const out: Row[] = []
     const n = q.trim().toLowerCase()
     const words = n.split(/\s+/).filter(Boolean)
     const hit = (text: string) => words.every(w => text.toLowerCase().includes(w))
-    const cmds = commands.filter(c => !n || hit(`${c.label} ${c.keywords || ''}`)).map(c => ({ key: c.id, group: 'Commands', icon: <Icon name={c.icon} size={16} />, label: c.label, hint: c.hint, run: c.run }))
-    const breaths = (library?.patterns || []).filter(p => n && hit(`${p.name} ${p.tagline} ${p.good_for} breathe breathing`)).slice(0, 8)
-      .map(p => ({ key: `p${p.key}`, group: 'Breathe', icon: <Icon name="wind" size={16} />, label: p.name, sub: p.tagline, run: () => navigate(sessionURL({ mode: 'breath', technique: p.key })) }))
-    const sits = (library?.styles || []).filter(st => n && hit(`${st.name} ${st.tagline} meditate meditation sit`)).slice(0, 8)
-      .map(st => ({ key: `s${st.key}`, group: 'Meditate', icon: <Icon name="lotus" size={16} />, label: st.name, sub: `${st.tagline} · ${st.minutes} min`, run: () => navigate(sessionURL({ mode: 'timer', technique: st.key, minutes: st.minutes })) }))
-    const own = (library?.presets || []).filter(p => n && hit(`${p.name} mine own preset`)).slice(0, 6)
-      .map(p => ({ key: `r${p.id}`, group: 'Yours', icon: <Icon name={p.kind === 'breath' ? 'wind' : 'timer'} size={16} />, label: p.name, run: () => navigate(sessionURL({ mode: p.kind === 'breath' ? 'breath' : 'timer', preset: p.id })) }))
-    if (n) out.push(...own, ...breaths, ...sits, ...cmds)
-    else out.push(...cmds)
+    const out: Row[] = commands.filter(c => !n || hit(`${c.label} ${c.keywords || ''}`)).map(c => ({ key: c.id, group: 'Commands', icon: <Icon name={c.icon} size={16} />, label: c.label, hint: c.hint, run: c.run }))
+    if (n) out.unshift({ key: 'search', group: 'Search', icon: <Icon name="search" size={16} />, label: <>Search mail for “{q.trim()}”</>, run: () => navigate(`/search?q=${encodeURIComponent(q.trim())}`) })
     return out
-  }, [q, library, commands, navigate])
+  }, [q, commands, navigate])
   useEffect(() => setHi(0), [q])
   useEffect(() => { list.current?.querySelector(`[data-i="${hi}"]`)?.scrollIntoView({ block: 'nearest' }) }, [hi])
 
@@ -41,7 +31,7 @@ export function CommandPalette({ onClose, commands, library }: { onClose: () => 
       <div className="palette-box" role="dialog" aria-label="Search and commands">
         <div className="pal-input">
           <Icon name="search" size={18} />
-          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Start a breath or a sit, or run a command…" aria-label="Search"
+          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Go to a view, search mail, or run a command…" aria-label="Search"
             onKeyDown={e => {
               if (e.key === 'ArrowDown') { e.preventDefault(); setHi(h => Math.min(rows.length - 1, h + 1)) }
               else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(0, h - 1)) }
