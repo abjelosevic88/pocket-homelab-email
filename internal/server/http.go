@@ -36,6 +36,9 @@ func (s *Server) Router() http.Handler {
 		r.Get("/metrics", s.handleMetrics)
 	}
 
+	// live updates (server-sent events): a long-lived stream, outside the API's request timeout
+	r.With(s.requireAuth).Get("/api/v1/events", s.handleEvents)
+
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(middleware.Timeout(120 * time.Second))
 		r.Post("/auth/login", s.handleLogin)
@@ -55,7 +58,6 @@ func (s *Server) Router() http.Handler {
 			r.Get("/counts", s.handleCounts)
 			r.Get("/summary", s.handleSummary)
 			r.Get("/summary/{date}", s.handleSummary)
-			r.Get("/events", s.handleEvents) // live updates (server-sent events)
 
 			// accounts (accounts_api.go)
 			r.Get("/providers", s.handleProviders)
