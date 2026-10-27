@@ -29,7 +29,7 @@ export function Sidebar({ onNavigate }: { onNavigate: () => void }) {
       <div className="sb-brand">
         <img src="/favicon.svg" alt="" className="sb-logo" />
         <span className="sb-title">{title !== 'Pocket Mail' ? title : <>Pocket <b>Mail</b></>}</span>
-        {status?.version && <span className="sb-version" title={`Version ${status.version}`}>{/^\d/.test(status.version) ? 'v' + status.version : status.version}</span>}
+        {status?.version && <span className="sb-version" title={`Version ${status.version}`}>{/^v?\d+\.\d+/.test(status.version) ? 'v' + status.version.replace(/^v/, '').replace(/[-+].*$/, '') : status.version}</span>}
       </div>
       <button type="button" className="btn primary create-btn" onClick={() => { onNavigate(); openCompose({ kind: 'new' }) }} title="Compose (c)">
         <Icon name="edit" size={15} strokeWidth={2.1} />Compose<kbd className="kbd-on-primary">C</kbd>
