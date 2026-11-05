@@ -572,6 +572,66 @@ func (s *Server) handleAttachment(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+// ---- tickets and passes, for a wallet app (mail:passes) ----
+
+// isPassFile: an Apple Wallet pass (.pkpass) or a bundle of them (.pkpasses).
+func isPassFile(name, mime string) bool {
+	n, m := strings.ToLower(name), strings.ToLower(mime)
+	return strings.HasSuffix(n, ".pkpass") || strings.HasSuffix(n, ".pkpasses") || strings.Contains(m, "vnd.apple.pkpass")
+}
+
+// handleListPasses lists the .pkpass files in a person's email, newest
+// first — and nothing else, so mail:passes never reaches other attachments.
+func (s *Server) handleListPasses(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	list, _, err := s.store.ListAttachments(ctx, actorID(ctx), "", ".pkpass", 0, queryInt(r, "limit"))
+	if err != nil {
+		s.fail(w, err, "passes")
+		return
+	}
+	out := []store.AttachmentRow{}
+	for _, a := range list {
+		if isPassFile(a.Filename, a.MIME) {
+			out = append(out, a)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"passes": out})
+}
+
+// handlePassFile downloads one pass; any other attachment is not found here.
+func (s *Server) handlePassFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	uid := actorID(ctx)
+	a, err := s.store.GetAttachment(ctx, uid, idParam(r, "id"))
+	if err != nil || !isPassFile(a.Filename, a.MIME) {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+	m, err := s.store.GetMessage(ctx, uid, a.MessageID)
+	if err != nil {
+		s.fail(w, err, "message")
+		return
+	}
+	data, err := s.mail.AttachmentData(ctx, m, a)
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/vnd.apple.pkpass")
+	w.Header().Set("Content-Disposition", contentDisposition("attachment", firstNonEmptyName(a.Filename, "pass.pkpass")))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "sandbox")
+	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+	_, _ = w.Write(data)
+}
+
+func firstNonEmptyName(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
+}
+
 var unsafeName = regexp.MustCompile(`[\\/:*?"<>|\x00-\x1f]+`)
 
 func safeFilename(s string) string {

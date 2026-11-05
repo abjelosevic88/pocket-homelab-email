@@ -84,6 +84,8 @@ func (s *Server) Router() http.Handler {
 			r.Post("/undo", s.handleUndo)
 			r.Get("/attachments", s.handleListAttachments)
 			r.Get("/attachments/{id}", s.handleAttachment)
+			r.Get("/passes", s.handleListPasses)
+			r.Get("/passes/{id}", s.handlePassFile)
 
 			// writing (compose_api.go)
 			r.Post("/compose", s.handleCompose)

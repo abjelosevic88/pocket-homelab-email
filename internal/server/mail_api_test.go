@@ -313,3 +313,35 @@ func TestMailExportImportIdempotent(t *testing.T) {
 		}
 	}
 }
+
+// mail:passes reaches the .pkpass files and nothing else.
+func TestMailPassesOnlyPkpass(t *testing.T) {
+	e := newTestServer(t)
+	ctx := context.Background()
+	m := store.Message{UserID: e.alice.ID, AccountID: e.acct.ID, FolderID: e.inbox.ID, UID: 11, MessageID: "p@x", Subject: "Your boarding pass", Date: "2026-11-01T10:00:00Z", BodyFetched: true}
+	atts := []store.Attachment{{Part: "2", Filename: "OS784.pkpass", MIME: "application/vnd.apple.pkpass", Data: []byte("PK\x03\x04pass")}}
+	if err := e.s.store.InsertMessage(ctx, &m, atts); err != nil {
+		t.Fatal(err)
+	}
+	code, d := e.do(t, e.aliceTok, "GET", "/api/v1/passes", nil)
+	ps, _ := d["passes"].([]any)
+	if code != 200 || len(ps) != 1 || ps[0].(map[string]any)["filename"] != "OS784.pkpass" {
+		t.Fatalf("passes %d %v", code, d)
+	}
+	for _, c := range []struct {
+		id   int64
+		want int
+	}{{atts[0].ID, 200}, {e.pdf.ID, 404}, {e.png.ID, 404}} {
+		req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/passes/%d", c.id), nil)
+		req.Header.Set("Authorization", "Bearer "+e.aliceTok)
+		rec := httptest.NewRecorder()
+		e.h.ServeHTTP(rec, req)
+		if rec.Code != c.want {
+			t.Fatalf("pass %d → %d, want %d", c.id, rec.Code, c.want)
+		}
+	}
+	// Bob has none of Alice's
+	if code, d := e.do(t, e.bobTok, "GET", "/api/v1/passes", nil); code != 200 || len(d["passes"].([]any)) != 0 {
+		t.Fatalf("bob sees alice's passes: %v", d)
+	}
+}

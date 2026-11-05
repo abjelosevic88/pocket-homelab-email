@@ -18,6 +18,7 @@ import (
 
 var linkOffers = []core.Offer{
 	{Scope: "mail:read", Name: "Read your email", Description: "Search and read your messages and conversations, and see how many are unread — for your journal, dashboards and Pocket AI. Never your passwords."},
+	{Scope: "mail:passes", Name: "Read tickets and passes in your email", Description: "List and download the tickets and boarding passes (.pkpass files) attached to your email, so a wallet app can add them. Nothing else of your email: no messages, no other files."},
 	{Scope: "mail:send", Name: "Send email for you", Description: "Send a message from one of your accounts (an invoice, a book to your Kindle). It lands in your Sent folder like any other."},
 }
 
@@ -33,6 +34,7 @@ var linkRoutes = []linkRoute{
 	{"GET", regexp.MustCompile(`^/api/v1/messages/\d+$`), "mail:read"},
 	{"GET", regexp.MustCompile(`^/api/v1/threads/\d+$`), "mail:read"},
 	{"GET", regexp.MustCompile(`^/api/v1/summary/\d{4}-\d{2}-\d{2}$`), "mail:read"},
+	{"GET", regexp.MustCompile(`^/api/v1/passes(/\d+)?$`), "mail:passes"},
 	{"POST", regexp.MustCompile(`^/api/v1/send$`), "mail:send"},
 }
 

@@ -61,7 +61,7 @@ Your mail stays with your mail provider: Pocket Mail keeps a copy of the recent 
 
 ## With Pocket Core
 
-Set `CORE_URL` and `CORE_REGISTRATION_KEY` and Mail joins the box: people sign in with Pocket Core, and through app links each person's mail reaches their own Pocket apps with nothing to paste — Documents, Files, Tasks, Calendar, Contacts, Notes, Money, their Immich login and Pocket AI. Other Pocket apps can read your mail (`mail:read`: Pocket Day, dashboards, Pocket AI) or send from your account (`mail:send`: an invoice from Pocket Invoicing, a book to your Kindle from Pocket Library). Events on the bus: `mail.received`, `mail.sent`. Without Core every connection can be made directly with a URL and a token; the Core-only choices stay visible, greyed out.
+Set `CORE_URL` and `CORE_REGISTRATION_KEY` and Mail joins the box: people sign in with Pocket Core, and through app links each person's mail reaches their own Pocket apps with nothing to paste — Documents, Files, Tasks, Calendar, Contacts, Notes, Money, their Immich login and Pocket AI. Other Pocket apps can read your mail (`mail:read`: Pocket Day, dashboards, Pocket AI), pick up the tickets and boarding passes attached to it (`mail:passes`: Pocket Wallet; nothing else of your email) or send from your account (`mail:send`: an invoice from Pocket Invoicing, a book to your Kindle from Pocket Library). Events on the bus: `mail.received`, `mail.sent`. Without Core every connection can be made directly with a URL and a token; the Core-only choices stay visible, greyed out.
 
 ## Develop
 
