@@ -180,6 +180,7 @@ const APPS: { slug: string; name: string; icon: string; what: string; help: stri
   { slug: 'contacts', name: 'Pocket Contacts', icon: 'user', what: 'Addresses as you type, who wrote to you (with their photo), and add new people.', help: 'Pocket Contacts → Settings → API tokens', port: '8191' },
   { slug: 'notes', name: 'Pocket Notes', icon: 'note', what: 'Save an email to your notes.', help: 'Pocket Notes → Settings → API tokens', port: '8182' },
   { slug: 'money', name: 'Pocket Money', icon: 'wallet', what: 'Record a receipt from your email as an expense.', help: 'Pocket Money → Settings → API tokens', port: '8178' },
+  { slug: 'crm', name: 'Pocket CRM', icon: 'target', what: 'Turn an email from a possible client into a deal, and see the deals you already have with whoever wrote.', help: 'Pocket CRM → Settings → API & shortcuts', port: '8249' },
 ]
 
 function Integrations() {

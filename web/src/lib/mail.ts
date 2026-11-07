@@ -262,8 +262,8 @@ export function loadApps(force = false): Promise<AppsStatus> {
   return p
 }
 
-export const APP_NAME: Record<string, string> = { documents: 'Pocket Documents', files: 'Pocket Files', photos: 'Photos', tasks: 'Pocket Tasks', calendar: 'Pocket Calendar', contacts: 'Pocket Contacts', notes: 'Pocket Notes', money: 'Pocket Money' }
-export const APP_ICON: Record<string, string> = { documents: 'file-text', files: 'folder', photos: 'image', tasks: 'check-square', calendar: 'calendar', contacts: 'user', notes: 'note', money: 'wallet' }
+export const APP_NAME: Record<string, string> = { documents: 'Pocket Documents', files: 'Pocket Files', photos: 'Photos', tasks: 'Pocket Tasks', calendar: 'Pocket Calendar', contacts: 'Pocket Contacts', notes: 'Pocket Notes', money: 'Pocket Money', crm: 'Pocket CRM' }
+export const APP_ICON: Record<string, string> = { documents: 'file-text', files: 'folder', photos: 'image', tasks: 'check-square', calendar: 'calendar', contacts: 'user', notes: 'note', money: 'wallet', crm: 'target' }
 
 // ---- text ----
 

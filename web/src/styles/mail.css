@@ -395,3 +395,7 @@ kbd.kbd-on-primary { margin-left: auto; }
   .composer .cmp-head { border-radius: 0; background: var(--raised); height: 50px; }
   .addr-label { width: 30px; }
 }
+.sender-deals { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0 14px 8px 62px; padding: 6px 10px; border-radius: 9px; background: var(--surface-2); min-width: 0; }
+.sender-deals .icon { color: var(--accent); flex: none; }
+.sender-deals a { font-weight: 600; max-width: 100%; }
+@media (max-width: 767px) { .sender-deals { margin-left: 14px; } }

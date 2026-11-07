@@ -6,7 +6,7 @@ import { useApp } from '../lib/app-context'
 import { useMail } from '../lib/mail-context'
 import { APP_ICON, APP_NAME, accountColor, act, attURL, fileIcon, fmtAddr, joinAddrs, loadApps, longDate, openCompose, textToHTML, useLive, useOnChange, who } from '../lib/mail'
 import { fmtBytes, fmtDateTime, fmtTime } from '../lib/format'
-import type { ActionKind, AISummary, AppLink, AppSlug, AppsStatus, Attachment, ContactCard, DayEvent, Invite, MessageFull, Sender, Thread, UnsubscribeResult } from '../lib/types'
+import type { ActionKind, AISummary, AppLink, AppSlug, AppsStatus, Attachment, ContactCard, CRMDeals, DayEvent, Invite, MessageFull, Sender, Thread, UnsubscribeResult } from '../lib/types'
 import { Icon } from './icons'
 import { Avatar, Empty, Loading, Menu, type MenuItem, Popover, Spinner, Switch, rectOf, useIsMobile, useToast, type Anchor } from './ui'
 import { HTMLBody, TextBody, frameDoc } from './MessageBody'
@@ -116,6 +116,7 @@ export function Reader({ id, conversations, onClose, onLeave, onPatch }: { id: n
       { label: 'Save email to Notes', icon: 'note', disabled: dis('notes'), hint: hint('notes'), onSelect: () => postApp('note', {}, 'Saved to Pocket Notes') },
       { label: 'Record an expense', icon: 'wallet', disabled: dis('money'), hint: hint('money'), onSelect: () => setDialog('expense') },
       { label: `Add ${sender ? who(sender) : 'sender'} to Contacts`, icon: 'user-plus', disabled: dis('contacts'), hint: hint('contacts'), onSelect: () => postApp('contact', { addr: sender?.addr, name: sender?.name }, 'Added to Pocket Contacts') },
+      { label: 'Make a deal in Pocket CRM', icon: 'target', disabled: dis('crm'), hint: hint('crm'), onSelect: () => postApp('deal', {}, 'Deal made in Pocket CRM') },
       'sep',
       { label: pinned ? 'Unpin' : 'Pin to the top', icon: 'pin-top', onSelect: () => run(pinned ? 'unpin' : 'pin') },
       { label: 'Move to a folder…', icon: 'folder-move', hint: 'V', onSelect: () => setMoving(true) },
@@ -204,7 +205,7 @@ function TB({ icon, label, onClick, on }: { icon: string; label: string; onClick
 }
 
 function LinkChip({ l, onGone }: { l: AppLink; onGone: () => void }) {
-  const verb: Record<string, string> = { documents: 'Saved to Documents', files: 'Saved to Files', photos: 'Saved to Photos', tasks: 'Task', calendar: 'On your calendar', contacts: 'In Contacts', notes: 'Saved to Notes', money: 'Expense' }
+  const verb: Record<string, string> = { documents: 'Saved to Documents', files: 'Saved to Files', photos: 'Saved to Photos', tasks: 'Task', calendar: 'On your calendar', contacts: 'In Contacts', notes: 'Saved to Notes', money: 'Expense', crm: 'Deal' }
   const { toast } = useToast()
   return (
     <span className="link-chip">
@@ -330,6 +331,8 @@ function MessageCard({ m, open, last, onToggle, onReply, apps, appOK, appWhy, on
         {msg.list_id && <div><dt>List</dt><dd>{msg.list_id}</dd></div>}
       </dl>}
 
+      {last && !fromMe && appOK('crm') && msg.from.addr && <SenderDeals addr={msg.from.addr} made={m.links.length} />}
+
       {m.images_blocked > 0 && <div className="banner">
         <Icon name="eye-off" size={15} />
         <span className="grow">{m.images_blocked === 1 ? 'One image is' : `${m.images_blocked} images are`} hidden to keep senders from knowing when you read this.</span>
@@ -346,6 +349,29 @@ function MessageCard({ m, open, last, onToggle, onReply, apps, appOK, appWhy, on
       {files.length > 0 && <Attachments m={m} files={files} apps={apps} appOK={appOK} appWhy={appWhy} onPreview={onPreview} onLink={onLink} />}
       {card && <SenderCard m={m} anchor={card} onClose={() => setCard(null)} onReload={onReload} contactsOK={appOK('contacts')} onLink={onLink} />}
     </article>
+  )
+}
+
+/** "2 open deals with this person" from Pocket CRM, each linking to its page there. Quiet when there are none or CRM does not answer. */
+function SenderDeals({ addr, made }: { addr: string; made: number }) {
+  const [d, setD] = useState<CRMDeals | null>(null)
+  useEffect(() => {
+    let live = true
+    api.get<CRMDeals>(`${V1}/apps/crm/deals?addr=${encodeURIComponent(addr)}`).then(r => { if (live) setD(r) }).catch(() => {})
+    return () => { live = false }
+  }, [addr, made])
+  if (!d?.deals?.length) return null
+  const open = d.deals.filter(x => !x.status || x.status === 'open')
+  const shown = open.length ? open : d.deals
+  const n = shown.length
+  const what = open.length ? `${n} open ${n === 1 ? 'deal' : 'deals'} with this person` : `${n} earlier ${n === 1 ? 'deal' : 'deals'} with this person`
+  return (
+    <div className="sender-deals small">
+      <Icon name="target" size={13} />
+      <span className="muted">{what}:</span>
+      {shown.slice(0, 3).map(x => <a key={x.id} href={x.url} target="_blank" rel="noreferrer" className="ellipsis">{x.title}{x.stage_name ? ` · ${x.stage_name}` : ''}</a>)}
+      {n > 3 && (d.url ? <a href={d.url} target="_blank" rel="noreferrer">+{n - 3} more</a> : <span className="muted">+{n - 3} more</span>)}
+    </div>
   )
 }
 

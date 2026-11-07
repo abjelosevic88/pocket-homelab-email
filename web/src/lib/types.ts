@@ -140,7 +140,7 @@ export interface Unsubscribe { method: 'one_click' | 'mailto' | 'url' | 'none'; 
 
 export interface Sender { addr: string; name: string; allow_images: boolean; vip: boolean; muted: boolean; unsubscribed_at: string }
 
-export type AppSlug = 'documents' | 'files' | 'photos' | 'tasks' | 'calendar' | 'contacts' | 'notes' | 'money'
+export type AppSlug = 'documents' | 'files' | 'photos' | 'tasks' | 'calendar' | 'contacts' | 'notes' | 'money' | 'crm'
 
 /** Something made from a message in another Pocket app. */
 export interface AppLink {
@@ -324,6 +324,10 @@ export interface AppsStatus {
 }
 
 export interface Recipient { name: string; addr: string; source: 'contacts' | 'mail'; photo_url?: string }
+
+/** GET /apps/crm/deals: the deals you already have with a sender in Pocket CRM (url = the deal's page there). */
+export interface CRMDeal { id: number; title: string; stage_name: string; status: 'open' | 'won' | 'lost' | ''; amount: number; currency: string; url: string }
+export interface CRMDeals { deals: CRMDeal[]; open: number; url: string }
 
 export interface ContactCard { found: boolean; name: string; org: string; title: string; phone: string; photo_url: string; url: string }
 

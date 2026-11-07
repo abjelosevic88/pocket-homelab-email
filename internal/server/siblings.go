@@ -37,7 +37,8 @@ var (
 	appContacts  = pocketApp{"contacts", "Pocket Contacts", []string{"contacts:read", "contacts:write"}, "Suggest addresses as you type, show who wrote to you, and add new people"}
 	appNotes     = pocketApp{"notes", "Pocket Notes", []string{"notes:write"}, "Save an email to your notes"}
 	appMoney     = pocketApp{"money", "Pocket Money", []string{"transactions:write", "accounts:read"}, "Record a receipt from your email as an expense"}
-	pocketApps   = []pocketApp{appDocuments, appFiles, appTasks, appCalendar, appContacts, appNotes, appMoney}
+	appCRM       = pocketApp{"crm", "Pocket CRM", []string{"crm:write", "crm:read"}, "Turn an email from a possible client into a deal, and show the deals you already have with the sender"}
+	pocketApps   = []pocketApp{appDocuments, appFiles, appTasks, appCalendar, appContacts, appNotes, appMoney, appCRM}
 )
 
 func appBySlug(slug string) (pocketApp, bool) {
