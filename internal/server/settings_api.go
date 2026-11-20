@@ -430,8 +430,8 @@ func (s *Server) handleExportCSV(w http.ResponseWriter, r *http.Request) {
 
 // handleImportJSON merges an export into the caller's own setup. Accounts
 // already here (same address) are skipped and come without passwords (sign
-// in again); rules and templates with the same name are skipped, so
-// importing the same file twice adds nothing.
+// in again); rules and templates with the same name and senders you already
+// decided about are skipped, so importing the same file twice adds nothing.
 func (s *Server) handleImportJSON(w http.ResponseWriter, r *http.Request) {
 	var doc exportDoc
 	if err := decode(r, &doc); err != nil {
@@ -476,6 +476,7 @@ func (s *Server) handleImportJSON(w http.ResponseWriter, r *http.Request) {
 	haveRules := names(have)
 	for _, ru := range doc.Rules {
 		if haveRules[strings.ToLower(ru.Name)] {
+			counts["skipped"]++
 			continue
 		}
 		ru.ID, ru.UserID, ru.AccountID, ru.Hits, ru.LastHitAt = 0, uid, nil, 0, ""
@@ -492,6 +493,7 @@ func (s *Server) handleImportJSON(w http.ResponseWriter, r *http.Request) {
 	haveTpl := names(have)
 	for _, t := range doc.Templates {
 		if haveTpl[strings.ToLower(t.Name)] {
+			counts["skipped"]++
 			continue
 		}
 		t.ID, t.UserID = 0, uid
@@ -499,8 +501,19 @@ func (s *Server) handleImportJSON(w http.ResponseWriter, r *http.Request) {
 			counts["templates"]++
 		}
 	}
+	// a sender you already decided about keeps your decision
+	haveSenders := map[string]bool{}
+	if ss, err := s.store.ListSenders(ctx, uid); err == nil {
+		for _, sd := range ss {
+			haveSenders[strings.ToLower(strings.TrimSpace(sd.Addr))] = true
+		}
+	}
 	for _, sd := range doc.Senders {
 		sd.UserID = uid
+		if haveSenders[strings.ToLower(strings.TrimSpace(sd.Addr))] {
+			counts["skipped"]++
+			continue
+		}
 		if sd.Addr != "" && s.store.PutSender(ctx, sd) == nil {
 			counts["senders"]++
 		}
