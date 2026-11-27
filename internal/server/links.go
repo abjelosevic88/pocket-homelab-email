@@ -36,6 +36,17 @@ var portable = &core.Portable{
 	},
 }
 
+// capabilities are what Pocket Search, Pocket Day and Pocket Hub may ask
+// Mail (docs/capabilities.md in pocket-homelab-core); Register adds the
+// pocket:* offers. The routes are in capabilities.go. All three only read
+// the copy of the mail kept here; there is no quick line to keep, because a
+// line typed elsewhere is not an email (sending stays with mail:send).
+var capabilities = core.Capabilities{
+	Search: &core.Searchable{What: "Your email, by subject, people and text", Kinds: []string{"email"}, Bangs: []string{"mail", "email"}},
+	Day:    &core.DayFeed{Label: "Mail", One: "email", Many: "emails", Unit: "count", What: "The email you got and sent that day"},
+	Widget: &core.Widget{Title: "Inbox", What: "How many emails in your inbox are unread, and the newest of them"},
+}
+
 type linkRoute struct {
 	methods string
 	path    *regexp.Regexp
@@ -56,7 +67,7 @@ var errLinkScope = errors.New("outside the link's scope")
 
 // linkAllows reports whether a link token with these scopes may make this request.
 func linkAllows(scopes []string, r *http.Request) bool {
-	if portable.LinkAllows(scopes, r) {
+	if portable.LinkAllows(scopes, r) || capabilities.LinkAllows(scopes, r) {
 		return true
 	}
 	for _, lr := range linkRoutes {

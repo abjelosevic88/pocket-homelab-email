@@ -442,6 +442,13 @@ func ParseSearch(q string) Search {
 	return s
 }
 
+// Empty reports a search with nothing to look for: no words and no operator
+// (only punctuation was typed).
+func (s Search) Empty() bool {
+	return len(s.Words) == 0 && s.From == "" && s.To == "" && s.Subject == "" && s.In == "" && s.Before == "" && s.After == "" &&
+		!s.Unread && !s.Read && !s.Starred && !s.Attachment && s.Filename == "" && s.Account == ""
+}
+
 func relDate(v string) string {
 	if len(v) < 2 {
 		return ""
@@ -636,6 +643,43 @@ func (s *Store) ListMessages(ctx context.Context, uid int64, q Query) ([]Message
 		s.threadTotals(ctx, uid, out)
 	}
 	return out, more, nil
+}
+
+// DayMessages lists a person's mail dated from..to (RFC 3339, to not
+// included), newest first: what was sent (the Sent folders), or else what
+// came in (every folder but Sent, Drafts, Trash and Spam, as the day's
+// summary counts it). A message filed in two folders of an account shows
+// once, the inbox copy first. The second value is how many there are in all,
+// beyond the limit.
+func (s *Store) DayMessages(ctx context.Context, uid int64, from, to string, sent bool, limit int) ([]Message, int, error) {
+	roles := `f.role NOT IN ('sent','drafts','trash','junk')`
+	if sent {
+		roles = `f.role = 'sent'`
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	rows, err := s.DB.QueryContext(ctx, `WITH sel AS (SELECT m.id, ROW_NUMBER() OVER (
+				PARTITION BY m.account_id, CASE WHEN m.message_id != '' THEN m.message_id ELSE 'id' || m.id END
+				ORDER BY f.role = 'inbox' DESC, m.id) AS rn
+			FROM messages m JOIN folders f ON f.id = m.folder_id
+			WHERE m.user_id = ? AND `+roles+` AND m.date >= ? AND m.date < ?)
+		SELECT `+messageCols+`, COUNT(*) OVER () FROM sel JOIN messages m ON m.id = sel.id JOIN folders f ON f.id = m.folder_id
+		WHERE sel.rn = 1 ORDER BY m.date DESC, m.id DESC LIMIT ?`, uid, from, to, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	out, total := []Message{}, 0
+	for rows.Next() {
+		m, err := scanMessage(rows, &total)
+		if err != nil {
+			return nil, 0, err
+		}
+		m.BodyHTML, m.BodyText = "", ""
+		out = append(out, m)
+	}
+	return out, total, rows.Err()
 }
 
 // threadTotals sets each row's ThreadCount to the whole conversation (every

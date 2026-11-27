@@ -221,13 +221,14 @@ func (s *Server) registerWithCore(ctx context.Context) error {
 	m := core.Manifest{
 		Slug: "mail", Name: "Pocket Mail",
 		Description: "All your email in one calm inbox: Gmail, iCloud, Outlook and any IMAP account, with conversations, search, snooze, send later and undo send, one-click unsubscribe, rules, and attachments saved straight to your Pocket apps.",
-		Icon:        "/favicon.svg", Version: Version,
+		Icon:        "/favicon.svg", Version: Version, Category: "Everyday",
 		URL: s.cfg.CoreAppURL, PublicURL: s.cfg.BaseURL, HealthPath: "/healthz", EnvPrefix: "MAIL",
-		Publishes: eventTopics,
-		Offers:    linkOffers,
-		Portable:  portable,
-		Uses:      append(linkUses(), core.InferenceUse()),
-		Services:  []core.ServiceUse{{Type: "immich", Reason: "Save photos from your email to your photo library"}},
+		Publishes:    eventTopics,
+		Offers:       linkOffers,
+		Portable:     portable,
+		Capabilities: capabilities,
+		Uses:         append(linkUses(), core.InferenceUse()),
+		Services:     []core.ServiceUse{{Type: "immich", Reason: "Save photos from your email to your photo library"}},
 	}
 	if s.cfg.BaseURL != "" {
 		m.OIDC = &core.OIDCRequest{RedirectURIs: []string{s.oidcCallbackURL()}}
